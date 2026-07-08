@@ -1,0 +1,15 @@
+# allowlist 模式：預設全忽略，逐項核准追蹤（F11 制度：手寫設定入版控，runtime/secret 一律排除）
+# 追蹤原則：手寫或生成的「設定與指令檔」→ 追蹤；app 自管 state / 憑證 / DB / session / cache / log → 排除
+*
+!.gitignore
+!copilot-instructions.md
+!mcp-config.json
+!permissions-config.json
+!agents/
+!agents/*.agent.md
+!instructions/
+!instructions/**
+!prompts/
+!prompts/**
+# 明確永不追蹤（即使日後放寬 allowlist）：
+# config.json — app 自管 login state；data.db* / logs/ / session-state/ — runtime

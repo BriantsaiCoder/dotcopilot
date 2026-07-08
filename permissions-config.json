@@ -1,0 +1,62 @@
+{
+  "locations": {
+    "/Users/pochientsai/Downloads": {
+      "tool_approvals": [
+        {
+          "kind": "mcp",
+          "serverName": "sequential-thinking",
+          "toolName": "sequentialthinking"
+        },
+        {
+          "kind": "mcp",
+          "serverName": "memory",
+          "toolName": "create_entities"
+        }
+      ]
+    },
+    "/Users/pochientsai": {
+      "tool_approvals": [
+        {
+          "kind": "commands",
+          "commandIdentifiers": [
+            "docker"
+          ]
+        },
+        {
+          "kind": "commands",
+          "commandIdentifiers": [
+            "dotnet --version"
+          ]
+        },
+        {
+          "kind": "commands",
+          "commandIdentifiers": [
+            "git clone"
+          ]
+        },
+        {
+          "kind": "commands",
+          "commandIdentifiers": [
+            "dotnet publish"
+          ]
+        },
+        {
+          "kind": "write"
+        },
+        {
+          "kind": "commands",
+          "commandIdentifiers": [
+            "awk"
+          ]
+        },
+        {
+          "kind": "commands",
+          "commandIdentifiers": [
+            "kill",
+            "sleep"
+          ]
+        }
+      ]
+    }
+  }
+}
