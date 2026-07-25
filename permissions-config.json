@@ -57,6 +57,19 @@
           ]
         }
       ]
+    },
+    "/Users/pochientsai/Downloads/coding_agent_project/Anormal_Unit_Detection": {
+      "tool_approvals": [
+        {
+          "kind": "commands",
+          "commandIdentifiers": [
+            "cp"
+          ]
+        },
+        {
+          "kind": "write"
+        }
+      ]
     }
   }
 }
