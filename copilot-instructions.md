@@ -51,6 +51,8 @@ Build／test／lint 與 task-specific probes 全跑；會部署另跑 release ve
 
 S4、S5 全綠後才可 commit／push／open PR／merge／final closeout；merge 前 CI 綠並處理 bot review。BUGFIX 另跑 `bug-fix-settlement`。
 
+Ready PR 建立後 task 保持 active；其後任何 push 都使前次 CI 與 bot review gate 失效，須以 `bin/pr-review-gate <PR>` 對 current HEAD 重查至 PASS 才可提示 Squash merge，非 PASS 只標 WAITING／FAIL／UNAVAILABLE 並附證據。
+
 ## Copilot adapter
 
 - 預設 zh-TW；technical terms 保留 English。
