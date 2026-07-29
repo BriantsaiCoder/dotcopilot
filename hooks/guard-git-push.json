@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "/Users/pochientsai/.copilot/hooks/guard-git-push.sh",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}
