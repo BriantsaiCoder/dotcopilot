@@ -5,12 +5,6 @@
 !copilot-instructions.md
 !mcp-config.json
 !permissions-config.json
-!hooks/
-!hooks/**
-!rules/
-!rules/**
-!tests/
-!tests/**
 !agents/
 !agents/*.agent.md
 !instructions/
