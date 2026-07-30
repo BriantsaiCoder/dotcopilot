@@ -23,17 +23,35 @@ for rule in cookbook cpp dotnet frontend-spa infra testing typescript winforms; 
 done
 
 bytes=$(wc -c < copilot-instructions.md | tr -d ' ')
-[ "$bytes" -le 7000 ] || fail "copilot-instructions.md exceeds thin budget: ${bytes}B"
+[ "$bytes" -le 4000 ] || fail "copilot-instructions.md exceeds thin budget: ${bytes}B"
 
-for marker in dev-workflow S4 S5 S6 grilling domain-modeling implement tdd diagnosing-bugs code-review codebase-design; do
-  rg -q "$marker" copilot-instructions.md || fail "thin route missing: $marker"
+for rule in T0-1 T0-2 T0-3 T0-4 T0-5 T0-6 T0-7 T0-8 T0-9; do
+  rg -q "\\[$rule\\]" copilot-instructions.md || fail "Tier 0 rule missing: $rule"
 done
 
 rg -q '~/.agents/skills/dev-workflow/SKILL\.md' copilot-instructions.md ||
   fail 'shared dev-workflow route missing'
 
-if rg -q '^# tier[12]|superpowers:|mp-(diagnose|grill-with-docs|improve-codebase-architecture|tdd)' copilot-instructions.md; then
-  fail 'Copilot instructions still contain legacy/non-thin workflow'
+if rg -q 'Matt workflow integration|Routing 對照表|Anti-duplication|^### S[456]|reasoning_effort|plugin-contributed reviewer' copilot-instructions.md; then
+  fail 'Copilot instructions duplicate shared workflow policy'
+fi
+
+# settings.json is app-managed and intentionally ignored; validate it only on the live host.
+if [ -f settings.json ]; then
+  jq -e '.enabledPlugins["code-review@claude-plugins-official"] == null' settings.json >/dev/null ||
+    fail 'stale code-review plugin setting remains'
+  jq -e '.enabledPlugins["pr-review-toolkit@claude-plugins-official"] == false' settings.json >/dev/null ||
+    fail 'overlapping pr-review-toolkit plugin remains enabled'
+  jq -e '
+    [paths(scalars) as $path
+      | {path: ($path | map(tostring) | join(".")), value: getpath($path)}
+      | select((.path | test("reason.*effort"; "i")) and .value != null)]
+    | length == 0
+  ' settings.json >/dev/null || fail 'settings contains a fixed reasoning effort'
+  settings_status=PASS
+else
+  settings_status=SKIPPED
+  printf 'SKIP: app-managed settings unavailable\n'
 fi
 
 # CONVENTIONS 規則 11 的 host 一側。必須用 find 不得用 ls + glob：後者在 zsh 下任一目錄
@@ -43,4 +61,4 @@ fi
 manual_bak="$(find . -maxdepth 1 -name '*.bak*' -not -name '.*' 2>/dev/null | tr '\n' ' ')"
 [ -z "$manual_bak" ] || fail "manual .bak present (CONVENTIONS rule 11): $manual_bak"
 
-printf 'PASS: Copilot global config ownership\n'
+printf 'PASS: Copilot global config ownership (settings: %s)\n' "$settings_status"
