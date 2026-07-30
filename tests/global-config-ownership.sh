@@ -36,4 +36,11 @@ if rg -q '^# tier[12]|superpowers:|mp-(diagnose|grill-with-docs|improve-codebase
   fail 'Copilot instructions still contain legacy/non-thin workflow'
 fi
 
+# CONVENTIONS 規則 11 的 host 一側。必須用 find 不得用 ls + glob：後者在 zsh 下任一目錄
+# 無匹配即 nomatch 中止並回 0＝假合規（2026-07-30 實測同指令 zsh 回 0、bash 回 4）。
+# dotfile 排除＝規則 11 的「app 自管 runtime state 備份」例外。
+# 本 repo 無 hooks/drift-check.sh（只有 guard-git-push.{json,sh}），故不含 parity guard 斷言。
+manual_bak="$(find . -maxdepth 1 -name '*.bak*' -not -name '.*' 2>/dev/null | tr '\n' ' ')"
+[ -z "$manual_bak" ] || fail "manual .bak present (CONVENTIONS rule 11): $manual_bak"
+
 printf 'PASS: Copilot global config ownership\n'
