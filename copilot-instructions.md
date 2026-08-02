@@ -26,6 +26,8 @@ Repo 層對 tier0 只可加嚴；只有 user 當下明示可放鬆。衝突引�
 
 任何開發任務先讀 `~/.agents/skills/dev-workflow/SKILL.md`。Routing、authorization、risk、RED→GREEN、S4–S6 與 host adapter 均以該檔為 single source；`available_skills` 缺項時不得假裝已 invoke。
 
+子代理 = `task` 工具。Delegation 依 shared `dev-workflow` [INT-4]：無條件約束（可獨立平行、寫入 ownership 不重疊、main context 重驗）不因任何授權而放寬；滿足約束且併發 ≤2、單階段累計 ≤6 時自主判定並直接執行，不必先問；超出上界才回到明示授權。
+
 ## Copilot preferences
 
 - 預設 zh-TW；technical terms 保留 English。
