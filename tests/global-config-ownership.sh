@@ -24,6 +24,7 @@ done
 
 bytes=$(wc -c < copilot-instructions.md | tr -d ' ')
 [ "$bytes" -le 4000 ] || fail "copilot-instructions.md exceeds thin budget: ${bytes}B"
+[ "$bytes" -lt 3600 ] || fail "copilot-instructions.md must stay below 90% of its 4000B budget: ${bytes}B"
 
 for rule in T0-1 T0-2 T0-3 T0-4 T0-5 T0-6 T0-7 T0-8 T0-9; do
   rg -q "\\[$rule\\]" copilot-instructions.md || fail "Tier 0 rule missing: $rule"
@@ -31,6 +32,28 @@ done
 
 rg -q '~/.agents/skills/dev-workflow/SKILL\.md' copilot-instructions.md ||
   fail 'shared dev-workflow route missing'
+
+jq -e '
+  .mcpServers.context7.tools == ["resolve-library-id", "query-docs"] and
+  .mcpServers.context7.args[-1] == "@upstash/context7-mcp@3.2.5" and
+  (.mcpServers["microsoft-learn"] == null)
+' mcp-config.json >/dev/null ||
+  fail 'Context7 must be pinned/exact-tool scoped and microsoft-learn must stay plugin-owned'
+
+zshrc_path="${HOME}/.zshrc"
+if [ "${CI:-}" = true ]; then
+  printf 'SKIP: live ~/.zshrc Context7 approval wrapper is host-only\n'
+elif [ ! -f "$zshrc_path" ]; then
+  fail 'live ~/.zshrc missing; cannot verify Context7 approval wrapper'
+elif zsh -n "$zshrc_path" &&
+     grep -Fq "local context7_tools='context7(resolve-library-id),context7(query-docs)'" "$zshrc_path" &&
+     grep -Fq 'command copilot --allow-tool="$context7_tools" "$@"' "$zshrc_path" &&
+     grep -Fq 'command copilot --autopilot --allow-tool="$context7_tools" "$@"' "$zshrc_path" &&
+     grep -Fq 'copilot --autopilot "$@"' "$zshrc_path"; then
+  :
+else
+  fail 'Copilot launcher must auto-approve only the two Context7 read-only tools'
+fi
 
 if rg -q 'Matt workflow integration|Routing 對照表|Anti-duplication|^### S[456]|reasoning_effort|plugin-contributed reviewer' copilot-instructions.md; then
   fail 'Copilot instructions duplicate shared workflow policy'

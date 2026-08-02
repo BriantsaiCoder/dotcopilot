@@ -26,12 +26,14 @@ Repo 層對 tier0 只可加嚴；只有 user 當下明示可放鬆。衝突引�
 
 任何開發任務先讀 `~/.agents/skills/dev-workflow/SKILL.md`。Routing、authorization、risk、RED→GREEN、S4–S6 與 host adapter 均以該檔為 single source；`available_skills` 缺項時不得假裝已 invoke。
 
-子代理 = `task` 工具。Delegation 依 shared `dev-workflow` [INT-4]：無條件約束（可獨立平行、寫入 ownership 不重疊、main context 重驗）不因任何授權而放寬；滿足約束且併發 ≤2、單階段累計 ≤6 時自主判定並直接執行，不必先問；超出上界才回到明示授權。
+Delegation：[INT-4] 由 AI 自主判定，無須另問。
 
 ## Copilot preferences
 
 - 預設 zh-TW；technical terms 保留 English。
 - 回覆 SHOULD outcome-first、無空泛前後文；決策列編號選項／推薦／取捨，單字或數字即為完整回答，推測標記，已決不列替案。
+- 多步任務由 todo tool 承擔進度；未使用時只標「N/M → 下一步」。估時 MUST 有具體單位與前提。
+- 完成回報只寫「變更 → 可用結果 → 驗證指令」；刪除空泛首尾、重述、旁註與無資訊 hedge，保留真實不確定性。
 - Microsoft／Azure／.NET 優先 microsoft-learn；其他 library 優先 Context7。
 - Secrets 只回報 set／unset；不得印 config／credential body。
 

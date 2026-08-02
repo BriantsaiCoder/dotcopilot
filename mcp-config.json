@@ -11,10 +11,11 @@
       "command": "npx",
       "args": [
         "-y",
-        "@upstash/context7-mcp"
+        "@upstash/context7-mcp@3.2.5"
       ],
       "tools": [
-        "*"
+        "resolve-library-id",
+        "query-docs"
       ]
     },
     "awesome-copilot": {
