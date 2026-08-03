@@ -2,6 +2,8 @@
 # 追蹤原則：手寫或生成的「設定與指令檔」→ 追蹤；app 自管 state / 憑證 / DB / session / cache / log → 排除
 *
 !.gitignore
+!.github/
+!.github/**
 !copilot-instructions.md
 !mcp-config.json
 !permissions-config.json

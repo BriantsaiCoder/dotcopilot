@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # tests/global-config-ownership.sh 用 rg 做多條斷言；缺 rg 時依斷言極性
+      # 一半 FAIL、一半假 PASS，比整段紅更危險，所以裝起來而非容忍缺席。
+      - name: 安裝 ripgrep 與 shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep shellcheck
+
+      - name: mcp-config.json JSON 合法
+        run: jq -e . mcp-config.json > /dev/null
+
+      - name: hooks JSON 合法
+        run: jq -e . hooks/guard-git-push.json > /dev/null
+
+      - name: global config ownership
+        run: bash tests/global-config-ownership.sh
+
+      # 與 ~/.codex 同款：本 repo 是異地備份供還原，換機時使用者名稱不同會讓
+      # guard 與 drift 偵測靜默失效。
+      #
+      # 範圍只含 .sh 與 agents/，刻意排除 hooks/guard-git-push.json——該檔的 "bash"
+      # 欄目前是裸絕對路徑 /Users/pochientsai/…，換機即失效。這是**既有缺口而非豁免**：
+      # Codex 的等價設定是 shell 字串（"command": "bash \"$HOME/…\""，$HOME 會展開），
+      # 但 Copilot 的 "bash" 欄是裸路徑，是否展開 $HOME 無文件佐證。該 hook 是 [T0-3]
+      # force-push 防線，憑假設替換若不展開就是靜默拆防線，比寫死更糟。待實測該欄語意
+      # 後收斂，並把 .json 納回本檢查範圍。
+      - name: 無硬編碼家目錄路徑（.sh 與 agents/）
+        run: |
+          if grep -rn -e '/Users/' -e '/home/[^/]' hooks/*.sh agents/ 2>/dev/null; then
+            echo "::error::發現硬編碼家目錄路徑，請改用 \$HOME"
+            exit 1
+          fi
+
+      - name: shellcheck（hooks 與 tests）
+        run: shellcheck -S error hooks/*.sh tests/*.sh
+
+      # .gitignore 是 allowlist 模式（* 後逐項 ! 核准）。追蹤面一旦擴大就可能把
+      # config.json（登入 state）、data.db*、chats/ 等 runtime 與憑證收進版控。
+      - name: 追蹤面未擴大（憑證與 runtime state 不得入版控）
+        run: |
+          rc=0
+          for f in config.json data.db command-history-state.json; do
+            if git ls-files --error-unmatch "$f" > /dev/null 2>&1; then
+              echo "::error file=$f::敏感檔被追蹤——.gitignore allowlist 被放寬了"
+              rc=1
+            fi
+          done
+          if git ls-files 'chats/*' | grep -q .; then
+            echo "::error::chats/ 被追蹤——allowlist 被放寬了"
+            rc=1
+          fi
+          exit $rc

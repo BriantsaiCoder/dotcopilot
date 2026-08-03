@@ -33,6 +33,18 @@ done
 rg -q '~/.agents/skills/dev-workflow/SKILL\.md' copilot-instructions.md ||
   fail 'shared dev-workflow route missing'
 
+# 逐行 pin，與 ~/.claude/tests/repo-integrity.sh 及 ~/.codex/tests/global-config-ownership.sh
+# 的同名斷言對齊——canonical 行散在 6 個檔（三份指令檔 + 三支測試），且 Claude／Codex 帶
+# 前導 `- `、Copilot 是段落無前導，措辭若合法變更必須六處同步且不可無腦複製。
+# delegation-policy-parity.sh 除了 `grep -Fq '[INT-4]'` 這條 token 檢查外只比對語意
+# （autonomy／no-ask／無固定上限），所以保留 [INT-4] 而只改措辭一律會過——2026-08-03
+# 實測本行曾漂成「Delegation：[INT-4] 由 AI 自主判定，無須另問。」，掉了
+# `依 shared dev-workflow` 這個指向正本的錨點，而三支 gate 全綠。三家只有 Copilot 沒逐行
+# pin，所以只有這裡漂得掉。
+# shellcheck disable=SC2016  # 單引號是刻意的：要比對的字面就含反引號，展開反而錯
+grep -Fqx -- 'Delegation：依 shared `dev-workflow` [INT-4] 由 AI 自主判定，無須另問。' copilot-instructions.md ||
+  fail 'Copilot delegation adapter must stay thin and point to shared INT-4'
+
 jq -e '
   .mcpServers.context7.tools == ["resolve-library-id", "query-docs"] and
   .mcpServers.context7.args[-1] == "@upstash/context7-mcp@3.2.5" and
