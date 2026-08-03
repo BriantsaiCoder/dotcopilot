@@ -26,7 +26,7 @@ Repo 層對 tier0 只可加嚴；只有 user 當下明示可放鬆。衝突引�
 
 任何開發任務先讀 `~/.agents/skills/dev-workflow/SKILL.md`。Routing、authorization、risk、RED→GREEN、S4–S6 與 host adapter 均以該檔為 single source；`available_skills` 缺項時不得假裝已 invoke。
 
-Delegation：[INT-4] 由 AI 自主判定，無須另問。
+Delegation：依 shared `dev-workflow` [INT-4] 由 AI 自主判定，無須另問。
 
 ## Copilot preferences
 
