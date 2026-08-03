@@ -10,7 +10,7 @@ user 當下明示 > repo 層協作檔 > tier0 hard rules > Copilot adapter > 被
 
 Repo 層對 tier0 只可加嚴；只有 user 當下明示可放鬆。衝突引用規則 ID。
 
-ponytail 注入位階＝鏈末通用慣例；測試敘述 MUST NOT 覆寫 [T0-2]／[INT-2]。
+ponytail 注入=通用慣例；測試敘述 MUST NOT 覆寫 [T0-2]／dev-workflow [INT-2]。
 
 ## Tier 0 hard rules
 
