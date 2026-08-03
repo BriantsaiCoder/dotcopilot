@@ -19,8 +19,8 @@ Repo 層對 tier0 只可加嚴；只有 user 當下明示可放鬆。衝突引�
 [T0-5] 模糊時 MUST 停下發問並列假設與影響。觸發：多種合理解讀且將改檔。例外：無。驗證：改檔前有澄清或明示假設。
 [T0-6] Auth／payment／migration／大量刪除／crypto／multi-tenant／rate-limit／deployment pipeline 變更 MUST 附 rollback。觸發：diff 命中任一類。例外：無。驗證：plan／PR 有 rollback。
 [T0-7] DB migration MUST expand→dual-write→backfill→switch-reads→remove-legacy；破壞式 schema 不與 consumer 同 deploy。觸發：schema 變更。例外：停機批次可略 dual-write。驗證：migration plan 分段。
-[T0-8] Plan-first 明示或架構性／中高風險變更 MUST 先出 plan 並取得確認；其他明確 change／build／fix 可直接實作。觸發：命中 gate 且將改檔。例外：無。驗證：plan + 核准原句，或 user 實作原句。
-[T0-9] Merge 前 MUST 綠 CI 且處理 bot review。觸發：merge。例外：無。驗證：checks 綠 + reviews resolved。
+[T0-8] Plan-first 明示或架構性／中高風險變更 MUST 先出 plan 並取得確認；其餘明確的 in-scope change／build／fix 可直接實作並驗證。觸發：命中 gate 且將改檔。例外：無。驗證：plan + 核准原句，或 user 實作原句。
+[T0-9] Merge 前 MUST 綠 CI 且處理 bot review。觸發：merge。例外：無。驗證：checks 綠 + reviews resolved（bot 異步 2–3 分產出，開 PR 當下為空是延遲不是無）。
 
 ## Shared workflow
 
@@ -35,6 +35,8 @@ Delegation：[INT-4] 由 AI 自主判定，無須另問。
 - 多步任務由 todo tool 承擔進度；未使用時只標「N/M → 下一步」。估時 MUST 有具體單位與前提。
 - 完成回報只寫「變更 → 可用結果 → 驗證指令」；刪除空泛首尾、重述、旁註與無資訊 hedge，保留真實不確定性。
 - Microsoft／Azure／.NET 優先 microsoft-learn；其他 library 優先 Context7。
+- PR 預設 Ready for review；未明示 Draft 不得建立 Draft。
+- Shared checkout 或 branch switch 影響 live skills 時，用 `~/.agents/bin/agents-branch` 建 isolated worktree。
 - Secrets 只回報 set／unset；不得印 config／credential body。
 
 ## On-demand stack rules
