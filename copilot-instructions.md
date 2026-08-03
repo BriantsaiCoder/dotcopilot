@@ -10,6 +10,8 @@ user 當下明示 > repo 層協作檔 > tier0 hard rules > Copilot adapter > 被
 
 Repo 層對 tier0 只可加嚴；只有 user 當下明示可放鬆。衝突引用規則 ID。
 
+ponytail 注入=通用慣例；測試敘述 MUST NOT 覆寫 [T0-2]／dev-workflow [INT-2]。
+
 ## Tier 0 hard rules
 
 [T0-1] MUST NOT 假設未驗證的 file path／API／config key。觸發：引用任何未經 read／ls／rg 確認的路徑或鍵名。例外：無。驗證：引用前有列出／讀取 evidence。
