@@ -30,6 +30,25 @@ for rule in T0-1 T0-2 T0-3 T0-4 T0-5 T0-6 T0-7 T0-8 T0-9; do
   rg -q "\\[$rule\\]" copilot-instructions.md || fail "Tier 0 rule missing: $rule"
 done
 
+for id in T0-1 T0-5 T0-7 T0-9; do
+  [ "$(grep -Ec "^\\[$id\\]" copilot-instructions.md)" -eq 1 ] ||
+    fail "[$id] must have exactly one definition"
+  grep -Eq "^\\[$id\\].*觸發：.*例外：.*驗證：" copilot-instructions.md ||
+    fail "[$id] must keep directive/trigger/exception/verification on one line"
+done
+
+for contract in \
+  '[T0-1] Action／current-state claim 涉及 path／API／config key 時 MUST 有 live evidence；實際修改／執行 target 仍須 live probe。觸發：前述 action／claim。例外：non-action citation／hypothetical。驗證：read／list／schema probe 或例外標記。' \
+  '[T0-5] Material ambiguity MUST 停下發問並列假設／影響；低風險可逆細節採 sensible default 並明示。觸發：多種合理解讀會改變 outcome／scope／risk。例外：低風險、可逆、無 material impact。驗證：改檔前有澄清或 default／impact 紀錄。' \
+  '[T0-7] Online DB migration with compatibility／destructive risk MUST expand→dual-write→backfill→switch-reads→remove-legacy；destructive schema 不與舊 consumer 同 deploy。觸發：schema／data-contract risk。例外：additive／new-object 或停機 batch 可標不適用階段 `SKIPPED`（理由）。驗證：plan 列 phases／consumer boundary／[T0-6] rollback。' \
+  '[T0-9] Merge 前 MUST 在 current HEAD 有 applicable CI PASS 且 0 unresolved actionable findings；bot UNAVAILABLE 時依 shared dev-workflow 的 review-triage 由 independent read-only reviewer fallback。觸發：merge。例外：無。驗證：current-head CI + review gate PASS。'; do
+  grep -Fqx -- "$contract" copilot-instructions.md || fail "thin kernel contract missing: $contract"
+done
+
+if rg -q '^\[T0-1\] MUST NOT 假設未驗證|^\[T0-5\] 模糊時 MUST|^\[T0-7\] DB migration MUST|^\[T0-9\] Merge 前 MUST 綠 CI 且處理 bot review|其他 library 優先 Context7' copilot-instructions.md; then
+  fail 'stale blanket Tier 0 or Context7-first wording must not return'
+fi
+
 rg -q '~/.agents/skills/dev-workflow/SKILL\.md' copilot-instructions.md ||
   fail 'shared dev-workflow route missing'
 
