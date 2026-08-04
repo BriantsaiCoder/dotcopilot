@@ -70,6 +70,11 @@ for shape in object string; do
   guard_probe "$shape" deny  'git push --force-with-lease'
   guard_probe "$shape" deny  '/usr/bin/git push --force origin feat/unsafe'
   guard_probe "$shape" deny  '/usr/local/bin/git.exe push --force origin feat/unsafe'
+  guard_probe "$shape" deny  '"C:\Program Files\Git\bin\git.exe" push --force origin main'
+  guard_probe "$shape" deny  '"C:\Program Files\Git\bin\GIT.EXE" push --force origin main'
+  guard_probe "$shape" deny  '"C:\Program Files\Git\bin\GIT.EXE" p\ush --for\ce origin main'
+  guard_probe "$shape" deny  'GIT push --force origin main'
+  guard_probe "$shape" allow 'legit.exe push --force origin main'
   guard_probe "$shape" deny  'git push -fu origin feat/unsafe'
   guard_probe "$shape" deny  'git push -4f origin feat/unsafe'
   guard_probe "$shape" deny  'git push --force-with-lease origin main'
@@ -114,6 +119,12 @@ ln -s "$(command -v false)" "$fakebin/jq"
 guard_probe_payload 'broken jq dangerous push' deny \
   '{"toolName":"bash","toolArgs":{"command":"git push --force origin main"}}' \
   "$fakebin:$PATH"
+guard_probe_payload 'broken jq uppercase bare git' deny \
+  '{"toolName":"bash","toolArgs":{"command":"GIT push --force origin main"}}' \
+  "$fakebin:$PATH"
+broken_windows_payload=$("$real_jq" -nc --arg command '"C:\Program Files\Git\bin\GIT.EXE" push --force origin main' \
+  '{toolName:"bash",toolArgs:{command:$command}}')
+guard_probe_payload 'broken jq uppercase Windows git.exe' deny "$broken_windows_payload" "$fakebin:$PATH"
 guard_probe_payload 'broken jq non-push' allow \
   '{"toolName":"bash","toolArgs":{"command":"npm test"}}' \
   "$fakebin:$PATH"
