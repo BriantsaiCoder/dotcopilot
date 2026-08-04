@@ -85,6 +85,7 @@ for shape in object string; do
   guard_probe "$shape" deny  'git p"ush" --force origin main'
   guard_probe "$shape" deny  'git push --for"ce" origin main'
   guard_probe "$shape" deny  'g"it" push --force origin main'
+  guard_probe "$shape" deny  '{git,push,--force,origin,main}'
   guard_probe "$shape" deny  'git push --force-with-lease origin ma"in"'
   guard_probe "$shape" deny  'git p\ush --force origin main'
   guard_probe "$shape" deny  'git push --force-w origin main'
