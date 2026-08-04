@@ -18,6 +18,90 @@ fi
 for file in hooks/guard-git-push.json hooks/guard-git-push.sh; do
   [ -f "$file" ] || fail "local hook missing: $file"
 done
+
+real_jq="$(command -v jq)"
+guard=hooks/guard-git-push.sh
+guard_probe_payload() { # $1=label $2=allow|deny $3=payload [$4=PATH]
+  local label="$1" want="$2" payload="$3" probe_path="${4:-$PATH}" out actual=allow
+  out=$(printf '%s' "$payload" | env PATH="$probe_path" bash "$guard")
+  if [ -n "$out" ]; then
+    printf '%s' "$out" | "$real_jq" -e '
+      type == "object" and
+      .permissionDecision == "deny" and
+      (.permissionDecisionReason | type == "string" and length > 0)
+    ' >/dev/null 2>&1 || fail "git guard deny output is not valid top-level JSON: $label"
+    actual=deny
+  fi
+  [ "$actual" = "$want" ] || fail "git guard want=$want got=$actual: $label"
+}
+guard_probe() { # $1=object|string $2=allow|deny $3=command
+  local shape="$1" want="$2" command="$3" payload
+  if [ "$shape" = string ]; then
+    payload=$("$real_jq" -nc --arg command "$command" \
+      '{toolName:"bash",toolArgs:({command:$command}|tojson),cwd:"."}')
+  else
+    payload=$("$real_jq" -nc --arg command "$command" \
+      '{toolName:"bash",toolArgs:{command:$command},cwd:"."}')
+  fi
+  guard_probe_payload "$shape: $command" "$want" "$payload"
+}
+
+for shape in object string; do
+  guard_probe "$shape" allow 'git push origin main'
+  guard_probe "$shape" allow 'git push --all origin'
+  guard_probe "$shape" allow 'git push --force-with-lease origin feat/safe'
+  guard_probe "$shape" deny  'git push --force-with-lease'
+  guard_probe "$shape" deny  '/usr/bin/git push --force origin feat/unsafe'
+  guard_probe "$shape" deny  '/usr/local/bin/git.exe push --force origin feat/unsafe'
+  guard_probe "$shape" deny  'git push -fu origin feat/unsafe'
+  guard_probe "$shape" deny  'git push -4f origin feat/unsafe'
+  guard_probe "$shape" deny  'git push --force-with-lease origin main'
+  guard_probe "$shape" deny  'git push --force-with-lease origin master'
+  guard_probe "$shape" deny  'git push --force-with-lease origin feat/safe main'
+  guard_probe "$shape" deny  'git push --force --all origin'
+  guard_probe "$shape" deny  'git push --force-with-lease --all origin'
+  guard_probe "$shape" deny  'git push --mirror origin'
+  guard_probe "$shape" deny  'git push "--mirror" origin'
+  guard_probe "$shape" deny  'git "push" --mirror origin'
+  guard_probe "$shape" deny  'git push "--force" origin main'
+  guard_probe "$shape" deny  'git push --force-with-lease origin "main"'
+  guard_probe "$shape" deny  'git p"ush" --force origin main'
+  guard_probe "$shape" deny  'git push --for"ce" origin main'
+  guard_probe "$shape" deny  'g"it" push --force origin main'
+  guard_probe "$shape" deny  'git push --force-with-lease origin ma"in"'
+  guard_probe "$shape" deny  'git p\ush --force origin main'
+  guard_probe "$shape" deny  'git push --force-w origin main'
+  guard_probe "$shape" deny  'git push --force-with-l origin main'
+  guard_probe "$shape" deny  'git push --mirr origin'
+  guard_probe "$shape" deny  'git push --m origin'
+  guard_probe "$shape" deny  'git push --mi origin'
+  guard_probe "$shape" deny  $'g\\\nit push --mirror origin'
+  guard_probe "$shape" deny  "\$'git' push --mirror origin"
+  guard_probe "$shape" deny  'git push --force-with-l --al origin'
+  guard_probe "$shape" deny  'git push --force-with-lease --repo=origin main'
+  guard_probe "$shape" deny  'git push --force-with-lease --repo origin main'
+  guard_probe "$shape" deny  'git push --force-with-lease --branches origin'
+  guard_probe "$shape" deny  'git push --force-with-lease --br origin'
+  guard_probe "$shape" deny  'git push --force-with-lease origin :'
+  guard_probe "$shape" deny  'git push --force-with-lease origin refs/heads/*:refs/heads/*'
+  guard_probe "$shape" deny  'git push --force-with-lease origin HEAD'
+  guard_probe "$shape" deny  'git push --force-with-lease origin @'
+  guard_probe "$shape" deny  '(git push --mirror origin)'
+  guard_probe "$shape" deny  '(/usr/bin/git push --force origin main)'
+done
+
+guard_probe_payload 'malformed dangerous JSON' deny \
+  '{"toolName":"bash","toolArgs":{"command":"git push --force origin main"'
+fakebin="$(mktemp -d)"
+trap 'rm -rf "$fakebin"' EXIT
+ln -s "$(command -v false)" "$fakebin/jq"
+guard_probe_payload 'broken jq dangerous push' deny \
+  '{"toolName":"bash","toolArgs":{"command":"git push --force origin main"}}' \
+  "$fakebin:$PATH"
+guard_probe_payload 'broken jq non-push' allow \
+  '{"toolName":"bash","toolArgs":{"command":"npm test"}}' \
+  "$fakebin:$PATH"
+
 for rule in cookbook cpp dotnet frontend-spa infra testing typescript winforms; do
   [ -f "rules/$rule.md" ] || fail "local stack rule missing: rules/$rule.md"
 done
@@ -30,11 +114,19 @@ for rule in T0-1 T0-2 T0-3 T0-4 T0-5 T0-6 T0-7 T0-8 T0-9; do
   rg -q "\\[$rule\\]" copilot-instructions.md || fail "Tier 0 rule missing: $rule"
 done
 
-for id in T0-1 T0-5 T0-7 T0-9; do
+for id in T0-1 T0-5 T0-7 T0-8 T0-9; do
   [ "$(grep -Ec "^\\[$id\\]" copilot-instructions.md)" -eq 1 ] ||
     fail "[$id] must have exactly one definition"
   grep -Eq "^\\[$id\\].*觸發：.*例外：.*驗證：" copilot-instructions.md ||
     fail "[$id] must keep directive/trigger/exception/verification on one line"
+done
+
+t08="$(grep -E '^\[T0-8\]' copilot-instructions.md)"
+for clause in 'plan-first' '架構性' 'High-risk' 'external write' \
+              'destructive／costly／credential／payment／deployment／migration' 'material scope expansion' \
+              'in-scope、local、reversible' 'Low／Medium-risk' 'session plan' \
+              '不需第二次確認' 'protected gate'; do
+  [[ "$t08" == *"$clause"* ]] || fail "[T0-8] semantic clause missing: $clause"
 done
 
 for contract in \
@@ -77,10 +169,11 @@ if [ "${CI:-}" = true ]; then
 elif [ ! -f "$zshrc_path" ]; then
   fail 'live ~/.zshrc missing; cannot verify Context7 approval wrapper'
 elif zsh -n "$zshrc_path" &&
-     grep -Fq "local context7_tools='context7(resolve-library-id),context7(query-docs)'" "$zshrc_path" &&
-     grep -Fq 'command copilot --allow-tool="$context7_tools" "$@"' "$zshrc_path" &&
-     grep -Fq 'command copilot --autopilot --allow-tool="$context7_tools" "$@"' "$zshrc_path" &&
-     grep -Fq 'copilot --autopilot "$@"' "$zshrc_path"; then
+     grep -Eq "^[[:space:]]*local context7_tools='context7\(resolve-library-id\),context7\(query-docs\)'[[:space:]]*$" "$zshrc_path" &&
+     grep -Eq '^[[:space:]]*command copilot --allow-tool="\$context7_tools" "\$@"[[:space:]]*$' "$zshrc_path" &&
+     grep -Eq '^[[:space:]]*command copilot --autopilot --allow-tool="\$context7_tools" "\$@"[[:space:]]*$' "$zshrc_path" &&
+     grep -Eq '^[[:space:]]*copilot --autopilot "\$@"[[:space:]]*$' "$zshrc_path" &&
+     ! rg -q '^[[:space:]]*(command[[:space:]]+)?copilot([[:space:]]|$).*--(allow-all|yolo)' "$zshrc_path"; then
   :
 else
   fail 'Copilot launcher must auto-approve only the two Context7 read-only tools'
@@ -92,6 +185,8 @@ fi
 
 # settings.json is app-managed and intentionally ignored; validate it only on the live host.
 if [ -f settings.json ]; then
+  jq -e '.experimental == false and .model == "claude-opus-5" and .stayInAutopilot == true' settings.json >/dev/null ||
+    fail 'stable defaults must keep Opus 5 + Autopilot and disable global experimental'
   jq -e '.enabledPlugins["code-review@claude-plugins-official"] == null' settings.json >/dev/null ||
     fail 'stale code-review plugin setting remains'
   jq -e '.enabledPlugins["pr-review-toolkit@claude-plugins-official"] == false' settings.json >/dev/null ||
