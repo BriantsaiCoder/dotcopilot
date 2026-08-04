@@ -3,7 +3,7 @@
 # 契約（自 CLI 1.0.70 bundle app.js 逐字驗證）：
 #   stdin : {"sessionId","timestamp","cwd","toolName","toolArgs"}
 #   stdout: {"permissionDecision":"deny","permissionDecisionReason":"..."} 攔截；無輸出＝放行
-# 攔截 command literal 可判定的非 lease force／mirror；lease 只放行完整拼寫 + 明示 remote +
+# 攔截 command literal 可判定的非 lease force／mirror；lease 只放行 exact token + 明示 remote +
 # 單一非保護 refspec 的 canonical 形狀。一般 push（含 main／--all）放行。
 # Ceiling：不解析 Git config 的 remote.*.push／mirror 或 runtime shell expansion；由 repo pre-push、
 # Tier 0 與 CI 疊加防護。
@@ -82,6 +82,7 @@ check_seg() {
   for ((i = 0; i < ${#toks[@]}; i++)); do
     t=${toks[i]}
     if (( ! seen_push )); then
+      # SCAN_CMD 已先移除引號與跳脫；這裡只比對 git 可執行檔的常見 token。
       case "$t" in git|*/git|git.exe|*/git.exe) seen_git=1 ;; esac
       [[ $seen_git -eq 1 && "$t" == push ]] && seen_push=1
       continue
@@ -89,7 +90,7 @@ check_seg() {
     case "$t" in
       --force-with-lease)                                 has_lease=1; lease_exact=1 ;;
       --force-with-lease=*|--force-w*)                    has_lease=1 ;;
-      -f|--force|--force=*|--forc|--m*)                   has_force=1 ;;
+      -f|--force|--force=*|--forc|--m|--mi|--mir|--mirr|--mirro|--mirror) has_force=1 ;;
       -[a-zA-Z0-9]*)                           if [[ "$t" == *f* ]]; then has_force=1; else other_option=1; fi ;;
       --*)                                     other_option=1 ;;
       +*)                                      has_force=1; args+=("${t#+}") ;;
@@ -99,7 +100,7 @@ check_seg() {
   (( seen_push )) || return 0
   (( has_force )) && deny "[T0-3] 禁用非 lease force push（--force / -f / +refspec / --mirror）。非保護分支請改用 --force-with-lease。"
   (( has_lease )) || return 0
-  (( lease_exact )) || deny "[T0-3] --force-with-lease 必須使用完整拼寫。"
+  (( lease_exact )) || deny "[T0-3] --force-with-lease 只接受不帶值的 exact token；拒絕縮寫與 = 變體。"
   (( other_option )) && deny "[T0-3] --force-with-lease 只允許 canonical 形狀，不得混用其他 option。"
   (( ${#args[@]} == 2 )) || deny "[T0-3] --force-with-lease 必須明示 remote 與單一 refspec。"
   check_target "${args[1]}"

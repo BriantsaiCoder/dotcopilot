@@ -21,16 +21,32 @@ done
 
 real_jq="$(command -v jq)"
 guard=hooks/guard-git-push.sh
+guard_probe_dir="$(mktemp -d)"
+fakebin="$(mktemp -d)"
+trap 'rm -rf "$guard_probe_dir" "$fakebin"' EXIT
 guard_probe_payload() { # $1=label $2=allow|deny $3=payload [$4=PATH]
-  local label="$1" want="$2" payload="$3" probe_path="${4:-$PATH}" out actual=allow
-  out=$(printf '%s' "$payload" | env PATH="$probe_path" bash "$guard")
-  if [ -n "$out" ]; then
-    printf '%s' "$out" | "$real_jq" -e '
-      type == "object" and
-      .permissionDecision == "deny" and
-      (.permissionDecisionReason | type == "string" and length > 0)
-    ' >/dev/null 2>&1 || fail "git guard deny output is not valid top-level JSON: $label"
+  local label="$1" want="$2" payload="$3" probe_path="${4:-$PATH}"
+  local rc actual
+  if printf '%s' "$payload" |
+    env PATH="$probe_path" bash "$guard" \
+      >"$guard_probe_dir/stdout" 2>"$guard_probe_dir/stderr"; then
+    rc=0
+  else
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ ! -s "$guard_probe_dir/stdout" ] &&
+    [ ! -s "$guard_probe_dir/stderr" ]; then
+    actual=allow
+  elif [ "$rc" -eq 0 ] && [ ! -s "$guard_probe_dir/stderr" ] &&
+    [ -s "$guard_probe_dir/stdout" ] &&
+    "$real_jq" -se '
+      length == 1 and
+      .[0].permissionDecision == "deny" and
+      (.[0].permissionDecisionReason | type == "string" and length > 0)
+    ' "$guard_probe_dir/stdout" >/dev/null 2>&1; then
     actual=deny
+  else
+    actual="BADOUTPUT(rc=$rc)"
   fi
   [ "$actual" = "$want" ] || fail "git guard want=$want got=$actual: $label"
 }
@@ -49,6 +65,7 @@ guard_probe() { # $1=object|string $2=allow|deny $3=command
 for shape in object string; do
   guard_probe "$shape" allow 'git push origin main'
   guard_probe "$shape" allow 'git push --all origin'
+  guard_probe "$shape" allow 'git push --multiple origin backup'
   guard_probe "$shape" allow 'git push --force-with-lease origin feat/safe'
   guard_probe "$shape" deny  'git push --force-with-lease'
   guard_probe "$shape" deny  '/usr/bin/git push --force origin feat/unsafe'
@@ -92,8 +109,6 @@ done
 
 guard_probe_payload 'malformed dangerous JSON' deny \
   '{"toolName":"bash","toolArgs":{"command":"git push --force origin main"'
-fakebin="$(mktemp -d)"
-trap 'rm -rf "$fakebin"' EXIT
 ln -s "$(command -v false)" "$fakebin/jq"
 guard_probe_payload 'broken jq dangerous push' deny \
   '{"toolName":"bash","toolArgs":{"command":"git push --force origin main"}}' \
