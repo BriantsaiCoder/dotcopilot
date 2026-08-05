@@ -208,16 +208,9 @@ jq -e --arg home /Users/pochientsai '
      $home + "/Downloads/net8-week4-2026"] | sort))
 ' "$permissions_config" >/dev/null ||
   fail 'write approval must be limited to exact coding repo locations, never HOME/control-plane roots'
-
-for repo in \
-  /Users/pochientsai/Downloads/coding_agent_project/Anormal_Unit_Detection \
-  /Users/pochientsai/Downloads/coding_agent_project/DCT_data_import_data_stream_codex \
-  /Users/pochientsai/Downloads/net8-week4-2026; do
-  jq -e --arg repo "$repo" \
-    'any(.locations[$repo].tool_approvals[]?; .kind == "write")' \
-    "$permissions_config" >/dev/null ||
-    fail "coding repo lacks write approval: $repo"
-done
+jq -e '[.locations[].tool_approvals[]? | select(.kind == "commands")] | length == 0' \
+  "$permissions_config" >/dev/null ||
+  fail 'shell commands must not be auto-approved because their destinations can escape exact locations'
 
 zshrc_path="${HOME}/.zshrc"
 if [ "${CI:-}" = true ]; then
