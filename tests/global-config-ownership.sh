@@ -133,7 +133,7 @@ for rule in cookbook cpp dotnet frontend-spa infra testing typescript winforms; 
   [ -f "rules/$rule.md" ] || fail "local stack rule missing: rules/$rule.md"
 done
 
-# 2026-08-05：預警線由 90%(3600B) 放寬到 95%(3800B)，hard budget 4000B 不動。原因是 90% 線與
+# 2026-08-05：預警線由 <3600B 放寬到 <3800B（hard budget 的 95%），hard budget 4000B 不動。原因是 90% 線與
 # `~/.agents/tests/three-host-global-config-ownership.sh` 的逐字 [T2-6] 斷言互斥：還原 canonical
 # T2-6（167B，取代原本 105B 的壓縮版）後本檔為 3648B，必然撞 3600 而兩閘無法同時滿足。
 # 查證過 GitHub 官方 custom-instructions 文件無任何 byte／character／token 限制（唯一數字是
