@@ -196,6 +196,29 @@ jq -e '
 ' mcp-config.json >/dev/null ||
   fail 'Context7 must be pinned/exact-tool scoped and microsoft-learn must stay plugin-owned'
 
+permissions_config=permissions-config.json
+jq -e --arg home /Users/pochientsai '
+  (.locations[$home] == null) and
+  (.locations[($home + "/Downloads")] == null) and
+  (([.locations | to_entries[]
+      | select(any(.value.tool_approvals[]?; .kind == "write"))
+      | .key] | sort) ==
+   ([$home + "/Downloads/coding_agent_project/Anormal_Unit_Detection",
+     $home + "/Downloads/coding_agent_project/DCT_data_import_data_stream_codex",
+     $home + "/Downloads/net8-week4-2026"] | sort))
+' "$permissions_config" >/dev/null ||
+  fail 'write approval must be limited to exact coding repo locations, never HOME/control-plane roots'
+
+for repo in \
+  /Users/pochientsai/Downloads/coding_agent_project/Anormal_Unit_Detection \
+  /Users/pochientsai/Downloads/coding_agent_project/DCT_data_import_data_stream_codex \
+  /Users/pochientsai/Downloads/net8-week4-2026; do
+  jq -e --arg repo "$repo" \
+    'any(.locations[$repo].tool_approvals[]?; .kind == "write")' \
+    "$permissions_config" >/dev/null ||
+    fail "coding repo lacks write approval: $repo"
+done
+
 zshrc_path="${HOME}/.zshrc"
 if [ "${CI:-}" = true ]; then
   printf 'SKIP: live ~/.zshrc Context7 approval wrapper is host-only\n'
