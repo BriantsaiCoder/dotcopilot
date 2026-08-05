@@ -19,7 +19,8 @@ Repo 只可加嚴 tier0；僅 user 當下明示可放鬆；衝突引用 rule ID�
 
 Delegation：依 shared `dev-workflow` [INT-4] 由 AI 自主判定，無須另問。
 
-- 預設 zh-TW，術語保留 English；回覆 outcome-first，決策列推薦／取捨，推測標記。
+- 預設 zh-TW，術語保留 English。
+- 回覆 SHOULD outcome-first、無空泛前後文；決策列編號選項／推薦／取捨，單字或數字即為完整回答，推測標記，已決不列替案。
 - 多步用 todo；完成附驗證指令。
 - PR 預設 Ready。
 - Shared checkout／branch switch 影響 live skills：用 `~/.agents/bin/agents-branch` 建 isolated worktree。
