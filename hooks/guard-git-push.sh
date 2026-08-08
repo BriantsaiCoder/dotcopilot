@@ -78,10 +78,18 @@ check_seg() {
   local seg="$1" win_seg="$2" t win_t
   local IFS=$' \t\n'
   local -a toks=() win_toks=() args=()
-  # 不用 here-string 切詞：macOS 的 bash 3.2 把它的暫存檔開在 **cwd** 而非 ${TMPDIR}，
-  # cwd 唯讀時 redirect 失敗 → 陣列留空 → 下面的迴圈一次都不跑 → 落到檔尾 exit 0＝放行。
-  # 2026-08-08 在同源守衛實測確認（agents-config #70）。純參數展開沒有暫存檔；
-  # 本檔已 set -f（檔頭 set -ufo），故未加引號的展開不會被 glob。
+  # 不用 here-string 切詞。macOS 的 bash 3.2 把 `<<<` 的暫存檔放在 /tmp（**忽略**
+  # TMPDIR），/tmp 不可寫時才退回 cwd；兩者皆不可寫時 redirect 失敗 → 陣列留空 →
+  # 下面的迴圈一次都不跑 → 落到檔尾 exit 0＝放行。這是 [T0-3] 的 fail-open，而且
+  # 完全無聲——守衛的錯誤訊息進 stderr，host 只看 exit code。
+  #
+  # 2026-08-08 實測，同一個 force-push payload：
+  #   sandbox 內（/tmp 被擋、cwd 唯讀）  放行
+  #   sandbox 外（/tmp 可寫）            攔截，cwd 權限無關
+  # 所以「chmod 一個目錄當 cwd」重現不了它——條件是 /tmp 與 cwd 同時不可寫。
+  # 同源守衛的完整記錄見 agents-config #70／#71。
+  #
+  # 純參數展開沒有暫存檔。本檔已 set -f（檔頭 set -ufo），故未加引號的展開不會被 glob。
   toks=($seg)
   win_toks=($win_seg)
   local i seen_git=0 seen_push=0 has_force=0 has_lease=0 lease_exact=0 other_option=0
@@ -123,7 +131,8 @@ WIN_SEGMENTS=${SCAN_WIN//[\;\|\&]/$SEP}
 WIN_SEGMENTS=${WIN_SEGMENTS//$'\n'/$SEP}
 cmd_segments=()
 win_segments=()
-# 同 check_seg：不用 here-string，避免 cwd 唯讀時切段失敗而整段掃描被跳過（fail-open）。
+# 同 check_seg：不用 here-string，避免 /tmp 與 cwd 皆不可寫時切段失敗而整段掃描被
+# 跳過（fail-open）。
 saved_ifs=$IFS
 IFS="$SEP"
 cmd_segments=($CMD_SEGMENTS)
