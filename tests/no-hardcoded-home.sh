@@ -84,7 +84,7 @@ compute_targets() {
   query_err="$query_dir/err"
   git ls-files -z -- 'hooks/*.sh' agents >"$query_out" 2>"$query_err" || git_rc=$?
   if [ "$git_rc" -ne 0 ]; then
-    printf '取得掃描目標失敗（git rc=%s），不縮小範圍：%s\n' \
+    printf '取得掃描目標失敗（git rc=%s），不當作通過並停止掃描：%s\n' \
       "$git_rc" "$(cat "$query_err")" >&2
     rm -rf "$query_dir"
     return 2
