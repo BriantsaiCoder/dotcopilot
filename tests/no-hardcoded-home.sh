@@ -17,12 +17,12 @@
 # 缺的不是 pattern 也不是範圍，是「掃描自己失敗時被當成通過」這個 rc 三態沒有分辨，以及沒有
 # 任何東西會在閘門死掉時出聲。所以搬成獨立檔並附 --selftest。
 #
-# 掃描範圍是 hooks/*.sh，加上 agents/（只在它入版控時）。**這不是全 repo 覆蓋**——下列
+# 掃描範圍是 hooks/*.sh，加上 agents/ 內已追蹤的檔案（若有）。**這不是全 repo 覆蓋**——下列
 # tracked 檔目前都含硬編碼家目錄路徑且不在範圍內，逐項列出而非只提一項：
 #   hooks/guard-git-push.json:7          "bash" 欄是裸絕對路徑
 #   mcp-config.json:24                   MCP server 的 dll 路徑
 #   permissions-config.json:3,10,17      三個 location key
-#   tests/global-config-ownership.sh:256 `jq --arg home /Users/pochientsai` 斷言基準
+#   tests/global-config-ownership.sh     `jq --arg home /Users/pochientsai` 斷言基準
 # 其中 hooks/guard-git-push.json 是刻意排除：Codex 的等價設定是 shell 字串
 # （"command": "bash \"$HOME/…\""，$HOME 會展開），但 Copilot 的 "bash" 欄是裸路徑，是否展開
 # $HOME 無文件佐證。該 hook 是 [T0-3] force-push 防線，憑假設替換若不展開就是靜默拆防線，
@@ -34,10 +34,10 @@ cd "$(dirname "$0")/.." || exit 1
 PATTERNS=(-e '/Users/' -e '/home/[^/]')
 
 # scan <目錄或檔案...> -> 0=乾淨 1=有命中（已印出）2=掃描失敗（已印出理由）
-# -I：二進位檔只會印出「Binary file … matches」這種無 file:line 的行，對本用途是噪音。
+# -a：把含 NUL 的 in-scope 檔當文字掃；用 -I 會把它當 binary 而靜默漏掉硬編碼路徑。
 scan() {
   local out rc=0
-  out="$(grep -rnI "${PATTERNS[@]}" -- "$@" 2>&1)" || rc=$?
+  out="$(grep -rna "${PATTERNS[@]}" -- "$@" 2>&1)" || rc=$?
   case "$rc" in
     0)
       printf '%s\n' "$out"
@@ -75,15 +75,28 @@ run_scan() {
   esac
 }
 
-# 掃描目標。判準是**入版控**而非目錄存在：本機有一個 gitignored 的 agents/（內容只有
-# .DS_Store），用 `[ -d agents ]` 會讓本機與 CI 掃到不同的東西，且方向是「本機看起來有覆蓋、
-# CI 實際沒有」。用 git ls-files 判定，則它哪天入版控時覆蓋會自動恢復，而不是靜默漏掉。
+# 掃描目標只取 index 內的 hooks/*.sh 與 agents/，讓同一 VCS snapshot 在 local/CI 完全一致。
+# `-z` 保留換行、非 ASCII 與其他合法 path bytes；git 查詢失敗或空集合都 fail-closed。
 compute_targets() {
-  targets=(hooks/*.sh)
-  if git ls-files --error-unmatch agents >/dev/null 2>&1; then
-    targets+=(agents)
-  else
-    printf 'SKIP: agents/ 未入版控，本次掃描範圍為 hooks/*.sh\n'
+  local query_dir query_out query_err path git_rc=0
+  query_dir="$(mktemp -d "${TMPDIR:-/tmp}/copilot-targets.XXXXXX")" || return 2
+  query_out="$query_dir/out"
+  query_err="$query_dir/err"
+  git ls-files -z -- 'hooks/*.sh' agents >"$query_out" 2>"$query_err" || git_rc=$?
+  if [ "$git_rc" -ne 0 ]; then
+    printf '取得掃描目標失敗（git rc=%s），不縮小範圍：%s\n' \
+      "$git_rc" "$(cat "$query_err")" >&2
+    rm -rf "$query_dir"
+    return 2
+  fi
+  targets=()
+  while IFS= read -r -d '' path; do
+    targets+=("$path")
+  done < "$query_out"
+  rm -rf "$query_dir"
+  if [ "${#targets[@]}" -eq 0 ]; then
+    printf '取得掃描目標成功但集合為空，不當作通過\n' >&2
+    return 2
   fi
 }
 
@@ -102,6 +115,7 @@ selftest() {
   # fixture 用 /Users/example 而非真實使用者名稱：pattern 是 `/Users/`，鑑別力完全相同，
   # 但不會在 tests/ 底下多留一個真名字面（把掃描範圍擴到 tests/ 是已知的後續工作）。
   printf '#!/usr/bin/env bash\n# /Users/example/should-be-caught\n' > "$d/dirty/a.sh"
+  printf '#!/usr/bin/env bash\000/Users/example/should-be-caught\000' > "$d/dirty-nul.sh"
 
   check() { # $1=label $2=期望 rc $3=函式名 $4...=參數
     local label="$1" want="$2" fn="$3" got=0
@@ -124,12 +138,37 @@ selftest() {
   # 優先於命中——不會因為「反正找到了」而蓋掉 rc=2。
   check 'scan 目標不存在時大聲失敗' 2 scan "$d/clean" "$d/does-not-exist"
   check 'scan 有命中但目標缺席仍算掃描失敗' 2 scan "$d/dirty" "$d/does-not-exist"
+  check 'scan 含 NUL 的文字仍抓到硬編碼路徑' 1 scan "$d/dirty-nul.sh"
 
   # run_scan 層：rc 三態轉成通過／擋下。只驗 scan 不夠——同一個「失敗被當成通過」的缺陷
   # 可以只出現在這一層（把 `*)` 分支改成 return 0），而 scan 的四條仍然全綠。
   check 'run_scan 乾淨目錄通過' 0 run_scan "$d/clean"
   check 'run_scan 有硬編碼路徑擋下' 1 run_scan "$d/dirty"
   check 'run_scan 掃描失敗時擋下' 1 run_scan "$d/clean" "$d/does-not-exist"
+
+  # target selection 也要 fail-closed，且只回傳 tracked paths，不把整個 agents/ 目錄交給 grep。
+  mkdir -p "$d/fatal-git" "$d/tracked-git"
+  printf '#!/usr/bin/env bash\nprintf "fatal: simulated git failure\\n" >&2\nexit 128\n' \
+    > "$d/fatal-git/git"
+  printf '#!/usr/bin/env bash\nif [ "$#" -ne 5 ] || [ "$1" != ls-files ] || [ "$2" != -z ] || [ "$3" != -- ] || [ "$4" != "hooks/*.sh" ] || [ "$5" != agents ]; then\n  exit 64\nfi\nprintf "hooks/tracked.sh\\0agents/測試.md\\0"\n' \
+    > "$d/tracked-git/git"
+  chmod +x "$d/fatal-git/git" "$d/tracked-git/git"
+  compute_targets_with_fatal_git() { PATH="$d/fatal-git:$PATH" compute_targets; }
+  tracked_git_rejects_incomplete_query() {
+    PATH="$d/tracked-git:$PATH" git ls-files -z -- 'hooks/*.sh' >/dev/null
+  }
+  compute_targets_with_tracked_git() {
+    local target matched=0
+    PATH="$d/tracked-git:$PATH" compute_targets || return
+    for target in "${targets[@]}"; do
+      [ "$target" = agents/測試.md ] && matched=$((matched + 1))
+      [ "$target" = hooks/tracked.sh ] && matched=$((matched + 1))
+    done
+    [ "$matched" -eq 2 ] && [ "${#targets[@]}" -eq 2 ]
+  }
+  check 'git fatal 時 target selection 大聲失敗' 2 compute_targets_with_fatal_git
+  check 'fake git 拒絕缺 agents pathspec 的 query' 64 tracked_git_rejects_incomplete_query
+  check 'hooks/ 與 agents/ 只加入 NUL 分隔的 tracked paths' 0 compute_targets_with_tracked_git
 
   # 訊息鑑別力：掃描失敗與真命中必須印出互斥的 ::error::，否則排障者分不出「抓到了」與
   # 「儀器壞了」。只驗 rc 的話，把 `*)` 分支的訊息改成與 rc=1 相同也不會紅。
@@ -155,7 +194,9 @@ selftest() {
 # 掃描並回 rc=0——鑑別力步驟消失而 CI 全綠，正是本檔要消滅的失效類別。
 case "${1:-}" in
   '')
-    compute_targets
+    target_rc=0
+    compute_targets || target_rc=$?
+    [ "$target_rc" -eq 0 ] || exit "$target_rc"
     run_scan "${targets[@]}"
     exit $?
     ;;

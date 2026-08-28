@@ -32,16 +32,8 @@ jobs:
       - name: global config ownership
         run: bash tests/global-config-ownership.sh
 
-      # 與 ~/.codex 同款：本 repo 是異地備份供還原，換機時使用者名稱不同會讓
-      # guard 與 drift 偵測靜默失效。
-      #
-      # 掃描本體與範圍決策都在 tests/no-hardcoded-home.sh：原本內嵌在此的 grep 因為 operand
-      # `agents/` 未入版控而每次回 rc=2，被 `if` 與 `2>/dev/null` 吃掉，這道閘門自建立起恆綠。
-      # 根因、實測、以及「哪些 tracked 檔含硬編碼路徑但不在範圍內」的逐項清單見該檔檔頭——
-      # 範圍是它的決策，註解跟著決策走，不留一份會漂的副本在這裡。
-      #
-      # step 名稱寫出實際範圍：本閘門**不是** repo-wide 覆蓋。
-      - name: 無硬編碼家目錄路徑（hooks/*.sh）
+      # 範圍、失敗契約與根因都由 script 自己維護；這不是 repo-wide 掃描。
+      - name: 無硬編碼家目錄路徑（hooks/*.sh + tracked agents/*）
         run: bash tests/no-hardcoded-home.sh
 
       # 閘門自身的鑑別力。上一步在缺陷版本上也會綠，真正守住的是 selftest 裡「掃描目標不
