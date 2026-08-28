@@ -21,9 +21,101 @@ done
 
 real_jq="$(command -v jq)"
 guard=hooks/guard-git-push.sh
-guard_probe_dir="$(mktemp -d)"
-fakebin="$(mktemp -d)"
-trap 'rm -rf "$guard_probe_dir" "$fakebin"' EXIT
+# template 不可省：macOS 的 mktemp 在沒有 template 時走 confstr(_CS_DARWIN_USER_TEMP_DIR)
+# （/var/folders/…/T/）而**忽略 $TMPDIR**，於是在只放行 $TMPDIR 的 sandbox 下 mkdtemp 失敗，
+# 檔頭的 set -e 讓整支測試在第一條斷言之前就中止（實測 rc=1、零條斷言執行）。CI 的 ubuntu
+# runner 不受影響，所以失效方向是「本機永遠驗不到、CI 看起來一直綠」。~/.codex 的同名檔已
+# 於 dotcodex #18 修掉同一處；三家的 ownership 測試至此都帶 template（未查證 repo 內其他
+# 腳本，這句只涵蓋同名測試）。
+#
+# trap 裝在第一次 mktemp 之後、第二次之前：兩次都成功時行為不變，但第二次失敗時（set -e
+# 直接中止）第一個目錄仍會被清掉，不在 $TMPDIR 留孤兒。`${fakebin:-}` 的預設值不可省，
+# 否則 trap 在 fakebin 尚未賦值時會撞 set -u。
+guard_probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/copilot-gco.XXXXXX")"
+trap 'rm -rf "$guard_probe_dir" "${fakebin:-}"' EXIT
+fakebin="$(mktemp -d "${TMPDIR:-/tmp}/copilot-gco-bin.XXXXXX")"
+
+# [T0-3] 守衛不得依賴暫存檔 redirect（here-doc／here-string）。
+#
+# 為什麼要有這條（2026-08-28）：PR #8／#9 修掉的正是這個 fail-open——bash 3.2 把 `<<<` 的
+# 暫存檔放在 /tmp（**忽略** TMPDIR），/tmp 與 cwd 皆不可寫時 redirect 失敗 → 陣列留空 →
+# 迴圈一次都不跑 → 落到檔尾 exit 0＝放行，而且完全無聲（守衛的錯誤進 stderr，host 只看
+# exit code）。那兩顆 commit 都只動守衛本體、零測試，所以今天把 hooks/guard-git-push.sh
+# 改回 `<<<` 版本不會有任何東西出聲。姊妹 repo 的等價斷言是 ~/.claude/tests/repo-integrity.sh
+# 的 _no_tempfile_redirect，本 repo 先前沒有對應物。
+#
+# pattern 不排除任何 delimiter 字元，連 `=` 也不排除：shell 沒有 `<<=` 這個 redirect 運算子，
+# `cmd <<=EOF` 是 delimiter 為 `=EOF` 的**合法 here-doc**，`cmd << =` 同理。為了少一個算術
+# 左移（`$((a <<= 2))`）的誤報而排除 `=`，就是在安全斷言上開一個可用的繞過口。誤報是噪音，
+# 繞過是靜默失去防線。下面的 positive control 用的正是 `<<=EOF`，naive 版會漏掉它。
+has_tempfile_redirect() { # $1=待掃檔案；rc 0=乾淨 1=有命中（已印到 stderr）2=掃描失敗
+  local src hits rc=0 hits_rc=0
+  # `--` 不可省：路徑以 `-` 開頭時 grep 會當成 option，印自己的說明而非檔案內容，命中為空
+  # → 靜態斷言靜默通過。兩個 grep 必須拆開跑：pipefail 回的是最右的非零狀態，第一個的
+  # rc=2（讀不到）會被第二個的 rc=1（無命中）遮掉，於是「讀不到」被當成「乾淨」。
+  src="$(grep -vE '^[[:space:]]*#' -- "$1")" || rc=$?
+  [ "$rc" -lt 2 ] || return 2
+  # 剝掉整行註解之後才接行接續：`\` + newline 在 tokenize 前就被移除，所以
+  # `read -r -a t <<\`（換行）`<"$x"` 展開後是合法的 `<<<`，不接就是一個可用的繞過口。
+  # 順序不可顛倒——shell 的註解到行尾就結束，先接續會把註解的下一行併進註解。
+  src="$(printf '%s\n' "$src" | sed -e :a -e '/\\$/N; s/\\\n//; ta')"
+  hits="$(printf '%s\n' "$src" | grep -E '<<-?[[:space:]]*[^[:space:]]')" || hits_rc=$?
+  [ "$hits_rc" -lt 2 ] || return 2
+  [ -z "$hits" ] || { printf '%s\n' "$hits" >&2; return 1; }
+  return 0
+}
+
+# 偵測器自身的鑑別力。斷言本體在守衛乾淨時恆綠，所以先證明它會紅——否則哪天 pattern 或
+# 註解剝除被「簡化」，這條斷言會安靜地失去作用而全套仍然全綠。
+#
+# 四條 fixture 各釘住偵測器的一個部件，缺一條就有一種簡化能無聲通過：
+#   clean      → 不得誤報
+#   dirty      → `<<=EOF`（delimiter 為 `=EOF` 的合法 here-doc）。pattern 若為了避開算術
+#                左移 `$((a <<= 2))` 的誤報而排除 `=`，這條會紅。
+#   inline     → here-string 與行尾註解同一行。註解剝除若從 `^[[:space:]]*#` 簡化成
+#                `grep -v '#'`，整行被丟掉、命中消失，這條會紅。
+#   continued  → `<<` 被 `\` 換行拆開。少了上面那道 sed，這條會紅。
+hd_probe="$guard_probe_dir/hd"
+mkdir -p "$hd_probe"
+printf '#!/usr/bin/env bash\ntoks=($seg)\n' > "$hd_probe/clean.sh"
+printf '#!/usr/bin/env bash\nread -r -a toks <<=EOF\n$seg\n=EOF\n' > "$hd_probe/dirty.sh"
+printf '#!/usr/bin/env bash\nread -r -a toks <<<"$seg"  # 切詞\n' > "$hd_probe/inline.sh"
+# 拆成三段而非兩段：`... <<\` 那一行自己就含 `<<`，不接續也會被抓到，當 fixture 沒有
+# 鑑別力（實測過）。每行單獨只有一個 `<`，接續後才是 `<<<`，才真的在驗那道 sed。
+printf '#!/usr/bin/env bash\nread -r -a toks <\\\n<\\\n<"$seg"\n' > "$hd_probe/continued.sh"
+
+hd_check() { # $1=fixture 路徑 $2=期望 rc $3=失敗訊息
+  local got=0
+  has_tempfile_redirect "$1" 2>/dev/null || got=$?
+  [ "$got" -eq "$2" ] || fail "$3（want rc=$2 got rc=${got}）"
+}
+hd_check "$hd_probe/clean.sh"          0 'here-doc 偵測器對乾淨檔誤報'
+hd_check "$hd_probe/dirty.sh"          1 'here-doc 偵測器抓不到 <<=EOF 這個合法 here-doc'
+hd_check "$hd_probe/inline.sh"         1 'here-doc 偵測器漏掉帶行尾註解的 here-string（註解剝除過寬）'
+hd_check "$hd_probe/continued.sh"      1 'here-doc 偵測器漏掉被行接續拆開的 <<'
+hd_check "$hd_probe/does-not-exist.sh" 2 'here-doc 偵測器在讀不到檔案時未大聲失敗'
+
+# 掃全部 hooks/*.sh 而非只掃 $guard。姊妹 repo 的同款斷言用寫死的檔名清單，其註解逐字
+# 記載了代價：「2026-08-26 補入 pre-commit-claude.sh…所以三個 here-string 在這條斷言鎖死
+# 同一缺陷 18 天後仍然存活」。本 repo 今天只有一支 hook script，用 glob 就不會有第二支
+# 進來時沒人記得加清單的問題。
+for hook_sh in hooks/*.sh; do
+  hd_rc=0
+  has_tempfile_redirect "$hook_sh" || hd_rc=$?
+  case "$hd_rc" in
+    0) : ;;
+    1) fail "守衛仍有 here-doc／here-string（上列），/tmp 與 cwd 皆不可寫時會 fail-open: $hook_sh" ;;
+    *) fail "here-doc 靜態掃描失敗（rc=${hd_rc}），不當作通過: $hook_sh" ;;
+  esac
+done
+
+# 這裡刻意**沒有**「mktemp 一律帶 template」的靜態守衛，理由要講準，免得下一個人以為漏了：
+# 試作過，grep 層分不出「呼叫」與「字串」——本檔為了描述與測試這個缺陷，必然在 fixture
+# 的 printf 引數、失敗訊息與行尾註解裡寫出 mktemp 字面，而那些都會被同一條 pattern 命中。
+# 迴避它需要把偵測器自己的字面拆開拼接（`mk""temp` 之類），那比它守的缺陷更難讀。
+# 真正的做法是 shell parser 級的檢查或一支不談論 mktemp 的獨立 checker，列為 follow-up。
+# 本檔自身的 mktemp 帶 template 由 :26-32 的註解與 dotcodex #18 的先例把關。
+
 guard_probe_payload() { # $1=label $2=allow|deny $3=payload [$4=PATH]
   local label="$1" want="$2" payload="$3" probe_path="${4:-$PATH}"
   local rc actual
