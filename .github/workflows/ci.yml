@@ -32,21 +32,14 @@ jobs:
       - name: global config ownership
         run: bash tests/global-config-ownership.sh
 
-      # 與 ~/.codex 同款：本 repo 是異地備份供還原，換機時使用者名稱不同會讓
-      # guard 與 drift 偵測靜默失效。
-      #
-      # 範圍只含 .sh 與 agents/，刻意排除 hooks/guard-git-push.json——該檔的 "bash"
-      # 欄目前是裸絕對路徑 /Users/pochientsai/…，換機即失效。這是**既有缺口而非豁免**：
-      # Codex 的等價設定是 shell 字串（"command": "bash \"$HOME/…\""，$HOME 會展開），
-      # 但 Copilot 的 "bash" 欄是裸路徑，是否展開 $HOME 無文件佐證。該 hook 是 [T0-3]
-      # force-push 防線，憑假設替換若不展開就是靜默拆防線，比寫死更糟。待實測該欄語意
-      # 後收斂，並把 .json 納回本檢查範圍。
-      - name: 無硬編碼家目錄路徑（.sh 與 agents/）
-        run: |
-          if grep -rn -e '/Users/' -e '/home/[^/]' hooks/*.sh agents/ 2>/dev/null; then
-            echo "::error::發現硬編碼家目錄路徑，請改用 \$HOME"
-            exit 1
-          fi
+      # 範圍、失敗契約與根因都由 script 自己維護；這不是 repo-wide 掃描。
+      - name: 無硬編碼家目錄路徑（hooks/*.sh + tracked agents/*）
+        run: bash tests/no-hardcoded-home.sh
+
+      # 閘門自身的鑑別力。上一步在缺陷版本上也會綠，真正守住的是 selftest 裡「掃描目標不
+      # 存在時必須大聲失敗、而非誤判乾淨」那幾條（scan 與 run_scan 兩層各驗一次）。
+      - name: 無硬編碼家目錄路徑 selftest
+        run: bash tests/no-hardcoded-home.sh --selftest
 
       - name: shellcheck（hooks 與 tests）
         run: shellcheck -S error hooks/*.sh tests/*.sh
