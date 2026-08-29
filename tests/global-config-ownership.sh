@@ -278,6 +278,15 @@ for contract in \
   grep -Fqx -- "$contract" copilot-instructions.md || fail "thin kernel contract missing: $contract"
 done
 
+# 使用者背景的載入。不併進上面的 $contract 迴圈：那個迴圈與它的失敗訊息
+# （thin kernel contract missing）講的是 tier0 條文，這條是 adapter bullet，
+# 混進去會印出詞不達意的錯誤。形狀比照下方 Delegation 的單行 pin。
+# pin 完整措辭（含「；缺檔則跳過。」）：整行消失與措辭漂移都要抓得到——
+# 2026-08-03 的 Delegation 行就是掉了「依 shared dev-workflow」這個指向正本的
+# 錨點而三支 gate 全綠。對稱斷言在 ~/.codex 與 ~/.claude 各自的測試。
+grep -Fqx -- '- 回覆前 MUST 讀 `~/.agents/profile.md`（使用者背景）；缺檔則跳過。' copilot-instructions.md ||
+  fail 'user profile load bullet missing or reworded'
+
 if rg -q '^\[T0-1\] MUST NOT 假設未驗證|^\[T0-5\] 模糊時 MUST|^\[T0-7\] DB migration MUST|^\[T0-9\] Merge 前 MUST 綠 CI 且處理 bot review|其他 library 優先 Context7' copilot-instructions.md; then
   fail 'stale blanket Tier 0 or Context7-first wording must not return'
 fi
