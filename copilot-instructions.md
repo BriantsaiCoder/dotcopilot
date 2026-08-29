@@ -21,6 +21,7 @@ Delegation：依 shared `dev-workflow` [INT-4] 由 AI 自主判定，無須另�
 
 依 [INT-8] MUST 一次執行至完成。
 
+- 回覆前 MUST 讀 `~/.agents/profile.md`（使用者背景）。
 - 預設 zh-TW，術語保留 English。
 - 回覆 SHOULD outcome-first、無空泛前後文；決策列編號選項／推薦／取捨，單字或數字即為完整回答，推測標記，已決不列替案。
 - 多步用 todo；完成附驗證指令。
