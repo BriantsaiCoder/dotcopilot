@@ -15,7 +15,7 @@ Repo 只可加嚴 tier0；僅 user 當下明示可放鬆；衝突引用 rule ID�
 [T0-8] plan-first 明示、架構性／High-risk，或未授權 external write、destructive／costly／credential／payment／deployment／migration side effect／material scope expansion MUST 先 plan + confirm；明確 in-scope、local、reversible 的 Low／Medium-risk change／build／fix 可直接實作與 non-destructive verification，Medium 留 session plan、不需第二次確認。觸發：將改檔或執行 side effect 且命中前述 protected gate。例外：無。驗證：protected gate 有 plan + 核准原句；direct path 有 user 原句 + risk／reversibility，Medium 有 session plan。
 [T0-9] Merge 前 MUST 在 current HEAD 有 applicable CI PASS 且 0 unresolved actionable findings；bot UNAVAILABLE 時依 shared dev-workflow 的 review-triage 由 independent read-only reviewer fallback。觸發：merge。例外：無。驗證：current-head CI + review gate PASS。
 
-開發 MUST 先讀 `~/.agents/skills/dev-workflow/SKILL.md`；workflow 方法與 gates 唯一來源。非開發任務按需掃 `~/.agents/skills/`。
+開發 MUST 先讀 `~/.agents/skills/dev-workflow/SKILL.md`；workflow 方法與 gates 唯一來源。非開發 MUST 掃 `~/.agents/skills/`；疑即開發。
 
 Delegation：依 shared `dev-workflow` [INT-4] 由 AI 自主判定，無須另問。
 
