@@ -294,6 +294,22 @@ fi
 rg -q '~/.agents/skills/dev-workflow/SKILL\.md' copilot-instructions.md ||
   fail 'shared dev-workflow route missing'
 
+# 非開發 routing 的行為條文 pin。用 -Fq（子字串）不是 -Fqx：這句接在 dev route 那行的行尾，
+# 不是獨立行。
+#
+# 為何值得一條專屬斷言：這條的措辭強度直接決定它會不會被執行，而既有的字串斷言抓不到那件事。
+# 2026-08-31 headless 實測——同一句寫成「非開發按需掃 …」時，Copilot 連跑兩次都不觸發（但問它
+# 原文它逐字背得出來，證明條文有載入、只是不啟動）；升為「MUST 掃」後兩家探針都走到
+# speak-human-tw。所以漂成弱措辭是靜默失效：檔案裡還在、模型還背得出來、CI 全綠，功能沒了。
+# pin 整句而非只 pin 路徑，就是為了讓 MUST 與仲裁子句一起被守住。
+#
+# 三家只有 Codex／Copilot 有這條：Claude 側靠 ~/.claude/skills 的 symlink 提供等價能力，
+# 沒有對應的 prose anchor，所以這不是 capability-parity 的一列，不要加進 host-adapters.md
+# 的 mapping——那樣會讓 Claude 欄無條件 FAIL。
+# shellcheck disable=SC2016  # 單引號是刻意的：要比對的字面就含反引號，展開反而錯
+grep -Fq -- '非開發 MUST 掃 `~/.agents/skills/`；疑歸開發。' copilot-instructions.md ||
+  fail 'non-dev skill routing clause missing or reworded'
+
 # 逐行 pin，與 ~/.claude/tests/repo-integrity.sh 及 ~/.codex/tests/global-config-ownership.sh
 # 的同名斷言對齊——canonical 行散在 6 個檔（三份指令檔 + 三支測試），且 Claude／Codex 帶
 # 前導 `- `、Copilot 是段落無前導，措辭若合法變更必須六處同步且不可無腦複製。
