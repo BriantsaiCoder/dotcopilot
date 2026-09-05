@@ -272,7 +272,8 @@ done
 
 # [T0-10]（2026-09-06）：Fable 5.1 guide 要求審查會壓抑 narration 的句子；ponytail 的「最多三行」
 # 若無此保留子句會吃掉 progress update／閉幕 recap，故 pin 子句本身。
-t010="$(grep -E '^\[T0-10\]' copilot-instructions.md)"
+t010="$(grep -E '^\[T0-10\]' copilot-instructions.md || true)"
+[ "$(printf '%s' "$t010" | grep -c .)" -eq 1 ] || fail '[T0-10] must have exactly one definition line'
 for clause in 'ponytail' '不覆寫 progress update／閉幕 recap' '[T0-2]／[INT-2]'; do
   [[ "$t010" == *"$clause"* ]] || fail "[T0-10] semantic clause missing: $clause"
 done
