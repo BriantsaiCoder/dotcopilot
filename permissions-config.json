@@ -1,12 +1,5 @@
 {
   "locations": {
-    "/Users/pochientsai/Downloads/coding_agent_project/Anormal_Unit_Detection": {
-      "tool_approvals": [
-        {
-          "kind": "write"
-        }
-      ]
-    },
     "/Users/pochientsai/Downloads/coding_agent_project/DCT_data_import_data_stream_codex": {
       "tool_approvals": [
         {
