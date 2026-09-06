@@ -1,11 +1,5 @@
 ---
-paths:
-  - "**/*.{vue,jsx,tsx}"
-  - "**/vite.config.*"
-  - "**/package.json"
-  - "**/.nvmrc"
-  - "**/nuxt.config.*"
-  - "**/next.config.*"
+applyTo: "**/*.{vue,jsx,tsx},**/vite.config.*,**/package.json,**/.nvmrc,**/nuxt.config.*,**/next.config.*"
 ---
 
 # Frontend SPA 規則

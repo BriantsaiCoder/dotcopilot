@@ -237,19 +237,18 @@ guard_probe_payload 'broken jq non-push' allow \
   '{"toolName":"bash","toolArgs":{"command":"npm test"}}' \
   "$fakebin:$PATH"
 
+# Native user-level modular instructions:
+# https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions
 for rule in cookbook cpp dotnet frontend-spa infra testing typescript winforms; do
-  [ -f "rules/$rule.md" ] || fail "local stack rule missing: rules/$rule.md"
+  file="instructions/$rule.instructions.md"
+  [ -f "$file" ] || fail "native modular instruction missing: $file"
+  head -3 "$file" | grep -q '^applyTo: ' || fail "native modular instruction lacks applyTo: $file"
 done
 
-# 2026-08-05：預警線由 <3600B 放寬到 <3800B（hard budget 的 95%），hard budget 4000B 不動。原因是 90% 線與
-# `~/.agents/tests/three-host-global-config-ownership.sh` 的逐字 [T2-6] 斷言互斥：還原 canonical
-# T2-6（167B，取代原本 105B 的壓縮版）後本檔為 3648B，必然撞 3600 而兩閘無法同時滿足。
-# 查證過 GitHub 官方 custom-instructions 文件無任何 byte／character／token 限制（唯一數字是
-# 自我限縮於 code review 的 ~1,000 行），故 4000B 與其百分比皆為自訂值，放寬預警線不違反任何
-# 外部契約。hard budget 保持 4000B，仍是真正的天花板。
+# House budget 只防止 workflow/reference 被重新內嵌；不設貼近目前大小的預警線，
+# 避免為通過自訂 byte threshold 犧牲自然語言清晰度。
 bytes=$(wc -c < copilot-instructions.md | tr -d ' ')
-[ "$bytes" -le 4000 ] || fail "copilot-instructions.md exceeds thin budget: ${bytes}B"
-[ "$bytes" -lt 3800 ] || fail "copilot-instructions.md must stay below 95% of its 4000B budget: ${bytes}B"
+[ "$bytes" -le 6000 ] || fail "copilot-instructions.md exceeds thin-kernel budget: ${bytes}B"
 
 for rule in T0-1 T0-2 T0-3 T0-4 T0-5 T0-6 T0-7 T0-8 T0-9 T0-10; do
   rg -q "\\[$rule\\]" copilot-instructions.md || fail "Tier 0 rule missing: $rule"
@@ -270,13 +269,17 @@ for clause in 'plan-first' '架構性' 'High-risk' 'external write' \
   [[ "$t08" == *"$clause"* ]] || fail "[T0-8] semantic clause missing: $clause"
 done
 
-# [T0-10]（2026-09-06）：Fable 5.1 guide 要求審查會壓抑 narration 的句子；ponytail 的「最多三行」
-# 若無此保留子句會吃掉 progress update／閉幕 recap，故 pin 子句本身。
+# [T0-10] 僅保留 Ponytail 的 reuse/YAGNI 原則，明確排除會縮減 scope、固定輸出或
+# 覆寫 canonical verification 的 competing defaults。
 t010="$(grep -E '^\[T0-10\]' copilot-instructions.md || true)"
 [ "$(printf '%s' "$t010" | grep -c . || true)" -eq 1 ] || fail '[T0-10] must have exactly one definition line'
-for clause in 'ponytail' '不覆寫 progress update／閉幕 recap' '[T0-2]／[INT-2]'; do
+for clause in 'ponytail=慣例' '只採 reuse／YAGNI' 'MUST NOT 以精簡為由縮減已核准 scope' '固定回覆長度' '[T0-2]／[INT-2]'; do
   [[ "$t010" == *"$clause"* ]] || fail "[T0-10] semantic clause missing: $clause"
 done
+
+if [ -d rules ] && find rules -type f -name '*.md' -print -quit | grep -q .; then
+  fail 'legacy rules/*.md remain; use native instructions/*.instructions.md with applyTo'
+fi
 
 for contract in \
   '[T0-1] Action／current-state claim 涉及 path／API／config key 時 MUST 有 live evidence；實際修改／執行 target 仍須 live probe。觸發：前述 action／claim。例外：non-action citation／hypothetical。驗證：read／list／schema probe 或例外標記。' \

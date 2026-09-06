@@ -1,9 +1,5 @@
 ---
-paths:
-  - "**/*Form.cs"
-  - "**/*Form.Designer.cs"
-  - "**/*UserControl.cs"
-  - "**/*UserControl.Designer.cs"
+applyTo: "**/*Form.cs,**/*Form.Designer.cs,**/*UserControl.cs,**/*UserControl.Designer.cs"
 ---
 
 # WinForms 規則

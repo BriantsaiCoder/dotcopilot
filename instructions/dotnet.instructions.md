@@ -1,11 +1,5 @@
 ---
-paths:
-  - "**/*.cs"
-  - "**/*.csproj"
-  - "**/*.sln"
-  - "**/*.razor"
-  - "**/*.cshtml"
-  - "**/appsettings*.json"
+applyTo: "**/*.cs,**/*.csproj,**/*.sln,**/*.razor,**/*.cshtml,**/appsettings*.json"
 ---
 
 # .NET 規則
