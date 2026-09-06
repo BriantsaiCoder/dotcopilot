@@ -344,8 +344,7 @@ jq -e --arg home /Users/pochientsai '
   (([.locations | to_entries[]
       | select(any(.value.tool_approvals[]?; .kind == "write"))
       | .key] | sort) ==
-   ([$home + "/Downloads/coding_agent_project/Anormal_Unit_Detection",
-     $home + "/Downloads/coding_agent_project/DCT_data_import_data_stream_codex",
+   ([$home + "/Downloads/coding_agent_project/DCT_data_import_data_stream_codex",
      $home + "/Downloads/net8-week4-2026"] | sort))
 ' "$permissions_config" >/dev/null ||
   fail 'write approval must be limited to exact coding repo locations, never HOME/control-plane roots'
