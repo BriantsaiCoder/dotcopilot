@@ -321,7 +321,8 @@ rg -q '~/.agents/skills/dev-workflow/SKILL\.md' copilot-instructions.md ||
 grep -Fq -- '非開發 MUST 掃 `~/.agents/skills/`；疑歸開發。' copilot-instructions.md ||
   fail 'non-dev skill routing clause missing or reworded'
 
-# 三條由官方 prompting 指引導出的行為條文 pin（2026-09-06）。與上面那條同一個失效模式：
+# 四條 pin（2026-09-06）：三條由官方 prompting 指引導出的行為條文（attribution／
+# authorization／test-scope），加一條 [INT-8] restatement。與上面那條同一個失效模式：
 # 措辭強度決定會不會被執行，而 byte 預算與 tier0 迴圈都抓不到弱化。
 #
 # 出處座標（一手官方文件，本次以 web fetch 讀取原文，非二手摘要）：
@@ -346,8 +347,9 @@ grep -Fq -- '非開發 MUST 掃 `~/.agents/skills/`；疑歸開發。' copilot-i
 # 所以不是 capability-parity 的列，不要加進 host-adapters.md 的 mapping——那會讓另外兩欄
 # 無條件 FAIL。要三家同步時，先加 host prose 再加 mapping，順序不可顛倒。
 #
-# 前兩條 pin 整句（含「衝突，」前綴與「並區分…」尾句）而非只 pin 中段：退回舊版的窄版仲裁
-# 或砍掉尾句都屬於同一種弱化，只 pin 中段會漏掉。
+# 四條一律 pin 到句點，不 pin 中段：條文尾巴（attribution 的「並區分條文要求與自行詮釋」、
+# [INT-8] restatement 的「核准清單與」前綴、test-scope 的「規模對齊鄰近檔」）被砍掉與整條
+# 被刪同屬弱化，只 pin 中段會漏掉。
 for clause in \
   'Repo 只可加嚴 tier0；僅 user 當下明示可放鬆。衝突，或因 rule／skill 而停下、發問、拒絕、縮減 scope 時 MUST 引用 rule ID 或 SKILL.md 路徑並引述條文，並區分條文要求與自行詮釋。' \
   '核准清單與已核准 scope 內 local、reversible 工作依 [INT-8] MUST 一次執行至完成。' \
