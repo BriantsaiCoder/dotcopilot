@@ -321,6 +321,42 @@ rg -q '~/.agents/skills/dev-workflow/SKILL\.md' copilot-instructions.md ||
 grep -Fq -- '非開發 MUST 掃 `~/.agents/skills/`；疑歸開發。' copilot-instructions.md ||
   fail 'non-dev skill routing clause missing or reworded'
 
+# 三條由官方 prompting 指引導出的行為條文 pin（2026-09-06）。與上面那條同一個失效模式：
+# 措辭強度決定會不會被執行，而 byte 預算與 tier0 迴圈都抓不到弱化。
+#
+# 出處座標（一手官方文件，本次以 web fetch 讀取原文，非二手摘要）：
+#   Fable 5.1  https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1
+#   Astra      https://developers.openai.com/api/docs/guides/latest-model.md
+# 下列逐條理由中的模型偏差描述均出自上述兩份文件的自陳，尚未經本 repo headless 實測驗證；
+# 若要升級為實證，比照上一個 block 補「日期 + 觀測到的行為」。
+#
+#   attribution  Astra-driven、Fable-compatible（非雙邊背書）：Astra 文件自陳對 skill／
+#                instruction 檔的字面更敏感、會因不明確條文提早停工，並要求模型指名並引述造成
+#                暫停的 SKILL.md 與條文、區分條文要求與自行詮釋；Fable 只有較弱的「明說你略過
+#                什麼與為什麼」，不相反但無等價建議。漂成「衝突引用 rule ID」時，停下／發問／
+#                縮 scope 這三種更常見的情況就不必交代來源，誤觸發的 gate 無從定位。
+#   authorization 兩份文件自陳的偏差方向相反——Fable 傾向對「描述問題」逕行動手，Astra 傾向對
+#                「幫我…」再問一次。這條同時釘住兩端；掉任一半都會退回其中一種偏差。
+#                例外必須含 [T0-5]／[T0-8]，否則 destructive／deployment 請求會與 tier0 對撞。
+#   test-scope   兩份文件都自陳模型會把 scratch 驗證擴寫成 committed test。這條的例外必須含
+#                [INT-2]，否則會與 dev-workflow 的 RED 要求對撞（priority 上 skill 程序高於
+#                慣例，但條文自相矛盾時模型的實際行為不可預測）。
+#
+# 這三條刻意只在 Copilot 側：~/.claude/CLAUDE.md 與 ~/.codex/AGENTS.md 目前皆無等價 prose，
+# 所以不是 capability-parity 的列，不要加進 host-adapters.md 的 mapping——那會讓另外兩欄
+# 無條件 FAIL。要三家同步時，先加 host prose 再加 mapping，順序不可顛倒。
+#
+# 前兩條 pin 整句（含「衝突，」前綴與「並區分…」尾句）而非只 pin 中段：退回舊版的窄版仲裁
+# 或砍掉尾句都屬於同一種弱化，只 pin 中段會漏掉。
+for clause in \
+  'Repo 只可加嚴 tier0；僅 user 當下明示可放鬆。衝突，或因 rule／skill 而停下、發問、拒絕、縮減 scope 時 MUST 引用 rule ID 或 SKILL.md 路徑並引述條文，並區分條文要求與自行詮釋。' \
+  '核准清單與已核准 scope 內 local、reversible 工作依 [INT-8] MUST 一次執行至完成。' \
+  '除 [T0-5]／[T0-8] 觸發外，「幫我／可以…嗎／我想要…」視為授權行動，MUST NOT 停在確認能力或只提計畫。' \
+  'scratch check MUST NOT 落檔為 permanent test，commit test 限任務要求、[INT-2] RED 或 repo 既有同類 test，規模對齊鄰近檔。'; do
+  grep -Fq -- "$clause" copilot-instructions.md ||
+    fail "model-guidance clause missing or reworded: $clause"
+done
+
 # 逐行 pin，與 ~/.claude/tests/repo-integrity.sh 及 ~/.codex/tests/global-config-ownership.sh
 # 的同名斷言對齊——canonical 行散在 6 個檔（三份指令檔 + 三支測試），且 Claude／Codex 帶
 # 前導 `- `、Copilot 是段落無前導，措辭若合法變更必須六處同步且不可無腦複製。
