@@ -1,19 +1,5 @@
 ---
-paths:
-  - "**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs}"
-  - "**/*Tests.cs"
-  - "**/*Spec.cs"
-  - "**/*.Tests/**"
-  - "**/__tests__/**"
-  - "**/tests/**"
-  - "**/test/**"
-  - "**/playwright.config.*"
-  - "**/vitest.config.*"
-  - "**/jest.config.*"
-  - "**/e2e/**"
-  - "**/*.csproj"
-  - "**/Directory.Build.props"
-  - "**/.github/workflows/*.{yml,yaml}"
+applyTo: "**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs},**/*Tests.cs,**/*Spec.cs,**/*.Tests/**,**/__tests__/**,**/tests/**,**/test/**,**/playwright.config.*,**/vitest.config.*,**/jest.config.*,**/e2e/**,**/*.csproj,**/Directory.Build.props,**/.github/workflows/*.{yml,yaml},**/*.{vue,jsx,tsx,html,css,scss}"
 ---
 
 # Testing 行為錨
@@ -21,9 +7,10 @@ paths:
 > Stack 工具選擇（xUnit / Vitest / GoogleTest / Playwright config 細則）+ Deployment Gate 細則 → 對應 `*-best-practices` / `*-release-verification` skill。
 
 - E2E 工具分工：**Playwright MCP**（headed）跑 user journey；**Chrome DevTools MCP** 用於 HTML / CSS / Mermaid 視覺問題與 perf / network / Web Vitals 除錯，不替代 E2E
-- E2E 義務：frontend UI / user-facing 變更後 **MUST** 跑 Playwright MCP（headed）；缺 GUI 環境（CI / 遠端 / Docker）明確回報 fallback headless，不靜默降級
-- RWD viewport：mobile（375）+ desktop（1280）baseline；critical flow（auth / 結帳 / 表單 / 資料變更 / 路由）加 tablet（768）
-- **MUST** 每 viewport 截圖 + console / page error log；缺一視同未驗證
+- UI 驗證依影響分層：純文案／局部樣式檢查受影響頁面與必要 viewport；互動／路由／表單用 Playwright 跑受影響 journey；auth／結帳／資料變更等 critical flow 才要求完整流程
+- Playwright 預設 headed；缺 GUI 環境（CI / 遠端 / Docker）明確回報 headless fallback，不靜默降級
+- RWD viewport：受影響 viewport 必驗；layout／responsive 變更至少 mobile（375）+ desktop（1280），critical flow 再加 tablet（768）
+- 截圖與 console / page error log 對 material UI／behavior change 必留；純文案或未影響其他 viewport 時只留對應頁面／viewport 證據
 - 瀏覽器清理：MCP `--isolated`（已配置 `~/.claude/playwright-mcp-config.json`）+ 顯式關 page / context；session 結束不應殘留 chromium
 - Selector 優先序：getByRole / getByLabel / visible text / getByTestId；CSS selector avoid（third-party 元件無 a11y 等明確理由除外）
 - Naming：`MethodName_Scenario_ExpectedResult`（.NET）、`describe/it` 自然語言（frontend）
@@ -55,7 +42,7 @@ paths:
 
 .NET Framework 專案的三個差異：
 
-- **BCL 可攜性可以機械化**——`<TargetFrameworks>net8.0;net48</TargetFrameworks>` + `Microsoft.NETFramework.ReferenceAssemblies`（`PrivateAssets="all"`，`Condition` 限定該 TFM，不進輸出也不污染另一個 target 的相依），用到目標版本沒有的 API 就編譯失敗。第二個 moniker 換成專案實際要搬進去的版本（`net48` 只是範例，新建專案的預設見 `dotnet.md`）；寫確切 moniker，不要寫超集（`net46` ≠ `net462`）。三個代價：多目標後 `dotnet run` 需要 `-f <tfm>`，而**加了 `-f` 就跳過 gate**（只會朝更綠偏，不會表現成紅燈）；目標為已停止支援的版本時新版 Visual Studio 載不進該 `.csproj`；首次 restore 需連 nuget.org。
+- **BCL 可攜性可以機械化**——`<TargetFrameworks>net8.0;net48</TargetFrameworks>` + `Microsoft.NETFramework.ReferenceAssemblies`（`PrivateAssets="all"`，`Condition` 限定該 TFM，不進輸出也不污染另一個 target 的相依），用到目標版本沒有的 API 就編譯失敗。第二個 moniker 換成專案實際要搬進去的版本（`net48` 只是範例，新建專案的預設見 `dotnet.instructions.md`）；寫確切 moniker，不要寫超集（`net46` ≠ `net462`）。三個代價：多目標後 `dotnet run` 需要 `-f <tfm>`，而**加了 `-f` 就跳過 gate**（只會朝更綠偏，不會表現成紅燈）；目標為已停止支援的版本時新版 Visual Studio 載不進該 `.csproj`；首次 restore 需連 nuget.org。
 - **`packages.config` 專案上 audit 本身仍會出 warning，但把它變成 gate 是 `UNAVAILABLE`**：MSBuild 的訊息嚴重度屬性（`NoWarn`／`TreatWarningsAsErrors`）不支援該專案格式。先遷 `PackageReference`，否則標 `UNAVAILABLE` 附 probe。
 - **Stryker 在 .NET Framework 上需要 nuget.exe 在 PATH 與 VS 的 NuGet targets/build tasks**（文件未明言平台限制，實務上推測 Windows-only）。若 build target 是 net8.0、4.x 只是源碼層約束，直接對 net8.0 那個 target 跑即可。`<LangVersion>6</LangVersion>` 對應 `stryker-config.json` 的 `"language-version": "Csharp6"`（文件已列為合法值；只能寫 config 檔，無 CLI 旗標）。
 

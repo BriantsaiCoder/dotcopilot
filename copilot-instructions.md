@@ -14,7 +14,7 @@ Repo 只可加嚴 tier0；僅 user 當下明示可放鬆；衝突引用 rule ID�
 [T0-7] Online DB migration with compatibility／destructive risk MUST expand→dual-write→backfill→switch-reads→remove-legacy；destructive schema 不與舊 consumer 同 deploy。觸發：schema／data-contract risk。例外：additive／new-object 或停機 batch 可標不適用階段 `SKIPPED`（理由）。驗證：plan 列 phases／consumer boundary／[T0-6] rollback。
 [T0-8] plan-first 明示、架構性／High-risk，或未授權 external write、destructive／costly／credential／payment／deployment／migration side effect／material scope expansion MUST 先 plan + confirm；明確 in-scope、local、reversible 的 Low／Medium-risk change／build／fix 可直接實作與驗證，Medium 留 session plan、不需第二次確認。觸發：將改檔或執行 side effect 且命中前述 protected gate。例外：無。驗證：protected gate 有 plan + 核准原句；direct path 有 user 原句 + risk／reversibility，Medium 有 session plan。
 [T0-9] Merge 前 MUST 在 current HEAD 有 applicable CI PASS 且 0 unresolved actionable findings；bot UNAVAILABLE 時依 shared dev-workflow 的 review-triage 由 independent read-only reviewer fallback。觸發：merge。例外：無。驗證：current-head CI + review gate PASS。
-[T0-10] 開發 MUST 套 ponytail（已載入免重 invoke）；=慣例，不覆寫 progress update／閉幕 recap；完成度／測試敘述 MUST NOT 覆寫 [T0-2]／[INT-2]。
+[T0-10] 開發套用 ponytail=慣例，但只採 reuse／YAGNI 原則；MUST NOT 以精簡為由縮減已核准 scope、固定回覆長度或覆寫 [T0-2]／[INT-2] 的完成與驗證策略。觸發：開發任務。例外：無。驗證：完整交付 scope + change-appropriate checks。
 
 開發 MUST 先讀 `~/.agents/skills/dev-workflow/SKILL.md`，依 [INT-8] 一次執行至完成；非開發 MUST 掃 `~/.agents/skills/`；疑歸開發。
 
@@ -22,9 +22,8 @@ Delegation：依 shared `dev-workflow` [INT-4] 由 AI 自主判定，無須另�
 
 - session 首次回覆前 MUST 讀 `~/.agents/profile.md`（使用者背景）；缺檔則跳過。
 - 預設 zh-TW，術語保留 English。
+- 實作以完成 scope 的最小 diff 為準：先 reuse／stdlib／native，禁止為未要求情境新增抽象、設定或依賴。
 - 回覆 SHOULD outcome-first、無空泛前後文；決策列編號選項／推薦／取捨，推測標記，已決不列替案；落檔長度對齊任務。
 - 多步用 todo；完成附驗證指令；改檔 surgical edit。
 - PR 預設 Ready。
 - 改 live skills 前用 `~/.agents/bin/agents-branch` 建 isolated worktree。
-
-Stack rules：`~/.copilot/rules/*.md`。

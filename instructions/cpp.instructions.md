@@ -1,9 +1,5 @@
 ---
-paths:
-  - "**/*.{c,cc,cpp,cxx,h,hpp,hxx}"
-  - "**/CMakeLists.txt"
-  - "**/CMakePresets.json"
-  - "**/vcpkg.json"
+applyTo: "**/*.{c,cc,cpp,cxx,h,hpp,hxx},**/CMakeLists.txt,**/CMakePresets.json,**/vcpkg.json"
 ---
 
 # C / C++ 規則

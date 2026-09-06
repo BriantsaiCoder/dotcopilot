@@ -1,11 +1,5 @@
 ---
-paths:
-  - "**/Dockerfile*"
-  - "**/docker-compose*.yml"
-  - "**/docker-compose*.yaml"
-  - "**/.dockerignore"
-  - "**/k8s/**"
-  - "**/*.k8s.yaml"
+applyTo: "**/Dockerfile*,**/docker-compose*.yml,**/docker-compose*.yaml,**/.dockerignore,**/k8s/**,**/*.k8s.yaml"
 ---
 
 # Infra 規則

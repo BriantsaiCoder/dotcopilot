@@ -1,11 +1,10 @@
 ---
-paths:
-  - "**/docs/cookbook/**"
+applyTo: "**/docs/cookbook/**"
 ---
 
 # Cookbook 行為錨
 
-> 專案知識庫規則。專案採用 cookbook 時，在該專案 CLAUDE.md 加 `@~/.claude/rules/cookbook.md` 顯式引入。
+> Copilot 依 `applyTo` 在編輯 `docs/cookbook/` 時載入本規則。
 > 配套 skill：修復後沉澱走 `bug-fix-settlement`；扇入檢查走 `deps-check`。
 
 ## 定位
