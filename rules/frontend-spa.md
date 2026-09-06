@@ -32,10 +32,10 @@ paths:
 
 | 症狀 | 入口 |
 |------|------|
-| LCP／CLS／INP 退化 | `chrome-devtools-mcp:debug-optimize-lcp` |
-| 記憶體洩漏、heap 成長 | `chrome-devtools-mcp:memory-leak-debugging` |
-| a11y 稽核 | `chrome-devtools-mcp:a11y-debugging` |
-| 不明的載入／渲染問題 | `chrome-devtools-mcp:troubleshooting` |
+| LCP／CLS／INP 退化 | `chrome-devtools-performance_start_trace` → `performance_analyze_insight` |
+| 記憶體洩漏、heap 成長 | `chrome-devtools-take_heapsnapshot`（操作前後各一份比對） |
+| a11y 稽核 | `chrome-devtools-lighthouse_audit` |
+| 不明的載入／渲染問題 | `chrome-devtools-list_console_messages` + `list_network_requests` |
 
 - 分工：**MCP 負責診斷、CI 負責把關**。CI gate 仍是 `@lhci/cli`（LCP ≤ 2.5s、CLS ≤ 0.1、INP ≤ 200ms，見 `frontend-release-verification`）；本機 profiling 不取代 CI。
 - 功能測試／E2E／表單流程走 playwright；視覺回歸與 rendered-page 修復走 `web-design-reviewer`。不要用 chrome-devtools 做這兩類事。
